@@ -1310,6 +1310,75 @@ const showToast = (message) => {
   setTimeout(() => toast.classList.remove('show'), 1800);
 };
 
+const getCartIconElement = () => document.querySelector('.cart-link:not(#nav-admin):not(#nav-profile)');
+
+const getFlyToCartImageSource = (triggerEl, product) => {
+  if (triggerEl instanceof HTMLElement) {
+    const scopedImage =
+      triggerEl.closest('.collection-card')?.querySelector('.collection-card-media img') ||
+      triggerEl.closest('.card')?.querySelector('.card-media img') ||
+      triggerEl.closest('.modal-card')?.querySelector('img') ||
+      triggerEl.closest('.product-layout')?.querySelector('#product-main') ||
+      triggerEl.closest('.checkout-item')?.querySelector('img');
+    if (scopedImage instanceof HTMLImageElement) return scopedImage;
+  }
+
+  if (document.body.dataset.page === 'product') {
+    const mainImage = document.getElementById('product-main');
+    if (mainImage instanceof HTMLImageElement) return mainImage;
+  }
+
+  const productImage = product?.image || product?.image_url || '';
+  if (!productImage) return null;
+  const phantom = new Image();
+  phantom.src = productImage;
+  return phantom;
+};
+
+const animateAddToCart = (triggerEl, product) => {
+  const cartIcon = getCartIconElement();
+  if (!cartIcon) return;
+
+  const sourceImage = getFlyToCartImageSource(triggerEl, product);
+  if (!(sourceImage instanceof HTMLImageElement) || !sourceImage.src) return;
+
+  const sourceRect = sourceImage.getBoundingClientRect();
+  const cartRect = cartIcon.getBoundingClientRect();
+  if (!sourceRect.width || !sourceRect.height || !cartRect.width || !cartRect.height) return;
+
+  const flyer = document.createElement('img');
+  flyer.className = 'cart-flyer';
+  flyer.src = sourceImage.currentSrc || sourceImage.src;
+  flyer.alt = '';
+  flyer.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(flyer);
+
+  const startX = sourceRect.left + sourceRect.width / 2;
+  const startY = sourceRect.top + sourceRect.height / 2;
+  const endX = cartRect.left + cartRect.width / 2;
+  const endY = cartRect.top + cartRect.height / 2;
+
+  flyer.style.left = `${startX}px`;
+  flyer.style.top = `${startY}px`;
+  flyer.style.width = `${Math.max(48, Math.min(sourceRect.width, 150))}px`;
+  flyer.style.height = `${Math.max(48, Math.min(sourceRect.height, 150))}px`;
+  flyer.style.setProperty('--fly-x', `${endX - startX}px`);
+  flyer.style.setProperty('--fly-y', `${endY - startY}px`);
+
+  requestAnimationFrame(() => {
+    flyer.classList.add('flying');
+    cartIcon.classList.add('cart-bump');
+  });
+
+  const cleanup = () => {
+    flyer.remove();
+    cartIcon.classList.remove('cart-bump');
+  };
+
+  flyer.addEventListener('animationend', cleanup, { once: true });
+  setTimeout(cleanup, 900);
+};
+
 const supportSourceLabel = (source) => (source === 'product_question' ? t('admin.sourceProduct') : t('admin.sourceSupport'));
 
 const openSupportModal = async ({ source = 'support', product = null } = {}) => {
@@ -1461,7 +1530,7 @@ const bootstrapProductsForPage = async () => {
   }
 };
 
-const addToCart = async (productIdRaw) => {
+const addToCart = async (productIdRaw, options = {}) => {
   const productId = normalizeId(productIdRaw);
   let product = products.find((p) => idsEqual(p.id, productId));
   if (!product) {
@@ -1514,6 +1583,11 @@ const addToCart = async (productIdRaw) => {
   }
   saveCart(cart);
   updateCartCount();
+  animateAddToCart(options?.triggerEl, snapshot);
+  if (document.body.dataset.page === 'cart') {
+    await renderCartPage();
+    renderRecommended();
+  }
   showToast(t('common.addedToCart', { name: snapshot.name }));
 };
 
@@ -2643,9 +2717,9 @@ const fillProductPage = (p) => {
   if (askBtn) askBtn.textContent = t('product.askQuestion');
   if (specsBtn) specsBtn.textContent = t('product.specsButton');
 
-  addBtn?.addEventListener('click', () => addToCart(p.id));
+  addBtn?.addEventListener('click', () => addToCart(p.id, { triggerEl: addBtn }));
   buyBtn?.addEventListener('click', () => {
-    addToCart(p.id);
+    addToCart(p.id, { triggerEl: buyBtn });
     window.location.href = 'checkout.html';
   });
   askBtn?.addEventListener('click', () => {
@@ -2702,7 +2776,7 @@ const wireCartEvents = () => {
     const addBtn = e.target.closest('.add-to-cart');
     if (addBtn) {
       const id = addBtn.dataset.id;
-      addToCart(id);
+      addToCart(id, { triggerEl: addBtn });
     }
 
     const removeBtn = e.target.closest('.remove-item');
