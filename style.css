@@ -99,6 +99,10 @@ a {
   align-items: center;
 }
 
+.nav-links > * {
+  flex: 0 0 auto;
+}
+
 .nav-links a {
   text-decoration: none;
   padding: 10px 14px;
@@ -1203,9 +1207,19 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 
   .nav-links {
     width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
     gap: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-bottom: -4px;
+  }
+
+  .nav-links::-webkit-scrollbar {
+    display: none;
   }
 
   .footer {
@@ -2779,6 +2793,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   .nav-links a {
     padding: 9px 12px;
     font-size: 0.92rem;
+    white-space: nowrap;
   }
 
   .nav-user {
@@ -3060,12 +3075,6 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   .nav-links {
     width: 100%;
     justify-content: flex-start;
-  }
-
-  .nav-links a[data-i18n="nav.home"],
-  .nav-links a[data-i18n="nav.products"] {
-    flex: 1 1 calc(50% - 4px);
-    text-align: center;
   }
 
   .hero-copy h1 {
