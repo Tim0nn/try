@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Dragon Toys</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('dragonTheme') || 'light';
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="admin">
+  <header class="nav">
+    <a class="logo" href="index.html">Dragon Toys</a>
+    <nav class="nav-links">
+      <a href="index.html" data-i18n="nav.home">Home</a>
+      <a href="products.html" data-i18n="nav.products">Products</a>
+      <a href="login.html" id="nav-login" data-i18n="nav.login">Login</a>
+      <a href="register.html" id="nav-register" data-i18n="nav.register">Register</a>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme">🌙</button>
+      <a href="cart.html" class="cart cart-link" aria-label="Cart">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h2l1.6 9.4a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L19 8H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span class="cart-count" id="cart-count"></span>
+      </a>
+      <a href="admin.html" id="nav-admin" class="cart cart-link profile-link" aria-label="Admin">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v5c0 5 4 8 8 9 4-1 8-4 8-9V7Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 12.5 11 14l4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <a href="profile.html" id="nav-profile" class="cart cart-link profile-link hidden" aria-label="Profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 19c1.2-3 4-4.5 7-4.5s5.8 1.5 7 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <button id="logout" class="btn ghost small-btn hidden" type="button" data-i18n="nav.logout">Logout</button>
+      <span id="nav-user" class="nav-user muted hidden"></span>
+    </nav>
+  </header>
+
+  <main class="section">
+    <div class="section-header">
+      <div>
+        <h1 data-i18n="admin.title">Admin Panel</h1>
+        <p class="muted" data-i18n="admin.subtitle">Manage products and view orders.</p>
+      </div>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="tab-btn active" type="button" data-admin-tab="products" data-i18n="admin.tabProducts">Products</button>
+      <button class="tab-btn" type="button" data-admin-tab="orders" data-i18n="admin.tabOrders">Orders</button>
+      <button class="tab-btn" type="button" data-admin-tab="questions" data-i18n="admin.tabQuestions">Questions</button>
+    </div>
+
+    <div id="admin-tab-products" class="admin-tab-panel">
+      <div class="admin-grid">
+        <div class="admin-card">
+          <h3 data-i18n="admin.manageProducts">Product Management</h3>
+          <form id="product-form" class="checkout-form">
+            <input type="hidden" id="prod-id">
+            <div class="form-row">
+              <label for="prod-name" data-i18n="admin.name">Name</label>
+              <input id="prod-name" required data-i18n-placeholder="admin.name" placeholder="Product name">
+            </div>
+            <div class="form-row">
+              <label for="prod-price" data-i18n="admin.price">Price</label>
+              <input id="prod-price" type="number" min="0" step="0.01" required placeholder="99.99">
+            </div>
+            <div class="form-row">
+              <label for="prod-image" data-i18n="admin.imageUrl">Image URL / file</label>
+              <input id="prod-image" type="text" required placeholder="https://... or drop image below">
+              <input id="prod-image-file" class="hidden" type="file" accept="image/*">
+              <button id="prod-image-drop" class="admin-upload-zone" type="button">
+                <span class="admin-upload-title" data-i18n="admin.imageDropTitle">Drop image here</span>
+                <span class="admin-upload-text" data-i18n="admin.imageDropText">or click to choose a file</span>
+              </button>
+              <div id="prod-image-preview" class="admin-image-preview hidden"></div>
+            </div>
+            <div class="form-row">
+              <label for="prod-gallery" data-i18n="admin.galleryImages">Gallery images</label>
+              <textarea id="prod-gallery" rows="2" placeholder="https://img1&#10;https://img2 or drop files below"></textarea>
+              <input id="prod-gallery-file" class="hidden" type="file" accept="image/*" multiple>
+              <button id="prod-gallery-drop" class="admin-upload-zone compact" type="button">
+                <span class="admin-upload-title" data-i18n="admin.galleryDropTitle">Drop gallery images here</span>
+                <span class="admin-upload-text" data-i18n="admin.galleryDropText">or click to add multiple files</span>
+              </button>
+              <div id="prod-gallery-preview" class="admin-gallery-preview hidden"></div>
+            </div>
+            <div class="form-row">
+              <label for="prod-model-url" data-i18n="admin.modelUrl">3D model URL (.glb)</label>
+              <input id="prod-model-url" type="url" placeholder="https://.../model.glb">
+            </div>
+            <div class="form-row checkbox-row">
+              <label class="checkbox-field" for="prod-show-3d">
+                <input id="prod-show-3d" type="checkbox">
+                <span data-i18n="admin.show3d">Show 3D model on product page</span>
+              </label>
+            </div>
+            <div class="form-row">
+              <label for="prod-desc" data-i18n="admin.description">Description</label>
+              <textarea id="prod-desc" rows="3" data-i18n-placeholder="admin.description" placeholder="Short description"></textarea>
+            </div>
+            <div class="form-row">
+              <label for="prod-country" data-i18n="admin.country">Country</label>
+              <input id="prod-country" data-i18n-placeholder="admin.country" placeholder="e.g., USA">
+            </div>
+            <div class="form-row">
+              <label for="prod-size" data-i18n="admin.size">Size</label>
+              <input id="prod-size" data-i18n-placeholder="admin.size" placeholder="e.g., Large">
+            </div>
+            <div class="form-row">
+              <label for="prod-category" data-i18n="admin.category">Category</label>
+              <input id="prod-category" data-i18n-placeholder="admin.category" placeholder="e.g., electronics">
+            </div>
+            <div class="form-row">
+              <label for="prod-qty" data-i18n="admin.quantity">Quantity</label>
+              <input id="prod-qty" type="number" min="0" step="1" placeholder="0">
+            </div>
+            <div class="form-row">
+              <label for="prod-color" data-i18n="admin.color">Color</label>
+              <input id="prod-color" data-i18n-placeholder="admin.colorPlaceholder" placeholder="Red, Blue, Black">
+            </div>
+            <div class="form-row">
+              <label for="prod-tags" data-i18n="admin.tags">Tags (comma separated)</label>
+              <input id="prod-tags" data-i18n-placeholder="admin.tags" placeholder="electronics, kids, bestseller">
+            </div>
+            <div class="form-row spec-editor">
+              <div class="spec-editor-head">
+                <label data-i18n="admin.specsEditor">Characteristics</label>
+                <button id="add-spec-row" class="btn ghost small-btn" type="button" data-i18n="admin.addSpec">+ Add characteristic</button>
+              </div>
+              <div id="prod-specs-list" class="spec-editor-list"></div>
+            </div>
+            <button type="submit" class="btn primary full" data-i18n="admin.saveProduct">Save product</button>
+            <p id="prod-msg" class="muted small"></p>
+          </form>
+        </div>
+
+        <div class="admin-card">
+          <h3 data-i18n="admin.products">Products</h3>
+          <div id="admin-products" class="admin-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-tab-orders" class="admin-tab-panel hidden">
+      <div class="admin-card">
+        <h3 data-i18n="admin.orders">Orders</h3>
+        <div id="admin-orders" class="admin-orders"></div>
+      </div>
+    </div>
+
+    <div id="admin-tab-questions" class="admin-tab-panel hidden">
+      <div class="admin-card">
+        <h3 data-i18n="admin.questions">Questions</h3>
+        <div id="admin-questions" class="admin-questions"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-left">
+      <div class="logo">Dragon Toys</div>
+      <p class="muted" data-i18n="footer.tagline">Elevated everyday essentials.</p>
+    </div>
+    <div class="footer-right">
+      <a href="#">Twitter</a>
+      <a href="#">Instagram</a>
+      <a href="#" data-i18n="footer.support">Support</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="supabase.js" defer></script>
+  <script src="script.js" defer></script>
+</body>
+</html>

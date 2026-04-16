@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products - Dragon Toys</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('dragonTheme') || 'light';
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="products">
+  <header class="nav">
+    <a class="logo" href="index.html">Dragon Toys</a>
+    <nav class="nav-links">
+      <a href="index.html" data-i18n="nav.home">Home</a>
+      <a class="active" href="products.html" data-i18n="nav.products">Products</a>
+      <a href="login.html" id="nav-login" data-i18n="nav.login">Login</a>
+      <a href="register.html" id="nav-register" data-i18n="nav.register">Register</a>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme">🌙</button>
+      <a href="cart.html" class="cart cart-link" aria-label="Cart">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h2l1.6 9.4a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L19 8H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span class="cart-count" id="cart-count"></span>
+      </a>
+      <a href="admin.html" id="nav-admin" class="cart cart-link hidden" aria-label="Admin">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v5c0 5 4 8 8 9 4-1 8-4 8-9V7Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 12.5 11 14l4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <a href="profile.html" id="nav-profile" class="cart cart-link profile-link hidden" aria-label="Profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 19c1.2-3 4-4.5 7-4.5s5.8 1.5 7 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <button id="logout" class="btn ghost small-btn hidden" type="button" data-i18n="nav.logout">Logout</button>
+      <span id="nav-user" class="nav-user muted hidden"></span>
+    </nav>
+  </header>
+
+  <main class="section collection-page">
+    <nav class="collection-breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html" data-i18n="nav.home">Home</a>
+      <span>/</span>
+      <span data-i18n="products.collections">Collections</span>
+      <span>/</span>
+      <span id="collection-crumb-current" data-i18n="products.title">All products</span>
+    </nav>
+
+    <section class="collection-hero glass">
+      <div class="collection-hero-copy">
+        <p class="collection-eyebrow" data-i18n="products.collectionEyebrow">Dragon Toys Collection</p>
+        <div class="collection-title-row">
+          <button class="back-btn" type="button" data-i18n="nav.back">Back</button>
+          <div>
+            <h1 id="collection-title" data-i18n="products.title">All products</h1>
+            <p class="muted collection-subtitle" data-i18n="products.subtitle">Filter, search, and browse the full catalog.</p>
+          </div>
+          <span id="collection-count-pill" class="collection-count-pill">0 products</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="collection-toolbar glass">
+      <div class="collection-toolbar-group">
+        <button id="filters-toggle" class="btn ghost small-btn" type="button" data-i18n="products.filterToggle">Filters</button>
+        <span id="toolbar-product-count" class="collection-toolbar-count">0 products</span>
+      </div>
+      <div class="collection-toolbar-group collection-toolbar-search">
+        <div class="search collection-search">
+          <input id="search" type="search" data-i18n-placeholder="products.searchPlaceholder" placeholder="Search products">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15.5 15.5 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <div class="collection-view-toggle" aria-label="View mode">
+          <button id="view-grid" class="view-toggle-btn active" type="button" data-view="grid">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="4" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+              <rect x="14" y="4" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+              <rect x="4" y="14" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+              <rect x="14" y="14" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+            </svg>
+            <span class="sr-only" data-i18n="products.viewGrid">Grid</span>
+          </button>
+          <button id="view-list" class="view-toggle-btn" type="button" data-view="list">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7.5h14M5 12h14M5 16.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+            </svg>
+            <span class="sr-only" data-i18n="products.viewList">List</span>
+          </button>
+        </div>
+        <label class="sort-field" for="sort-select">
+          <span data-i18n="products.sortLabel">Sort by</span>
+          <div class="select-wrap">
+            <select id="sort-select">
+              <option value="featured" data-i18n="products.sortFeatured">Featured</option>
+              <option value="best-selling" data-i18n="products.sortBest">Best selling</option>
+              <option value="alpha-asc" data-i18n="products.sortAZ">Alphabetically A-Z</option>
+              <option value="alpha-desc" data-i18n="products.sortZA">Alphabetically Z-A</option>
+              <option value="price-asc" data-i18n="products.sortPriceLow">Price low to high</option>
+              <option value="price-desc" data-i18n="products.sortPriceHigh">Price high to low</option>
+              <option value="newest" data-i18n="products.sortNewest">Newest first</option>
+              <option value="oldest" data-i18n="products.sortOldest">Oldest first</option>
+            </select>
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <section id="collection-shell" class="collection-shell" data-filters-open="true">
+      <aside id="filters-panel" class="collection-filters glass">
+        <div class="filter-panel-head">
+          <div>
+            <p class="collection-eyebrow" data-i18n="products.filterTitle">Filter collection</p>
+            <h2 data-i18n="products.filterTitle">Filter collection</h2>
+          </div>
+          <button id="filters-close" class="btn ghost small-btn" type="button" data-i18n="common.close">Close</button>
+        </div>
+
+        <form id="collection-filters-form" class="filters-form">
+          <section class="filter-block">
+            <h3 data-i18n="products.availability">Availability</h3>
+            <label class="filter-check">
+              <input type="checkbox" name="availability" value="in" checked>
+              <span data-i18n="products.inStock">In stock</span>
+            </label>
+            <label class="filter-check">
+              <input type="checkbox" name="availability" value="out" checked>
+              <span data-i18n="products.outOfStock">Out of stock</span>
+            </label>
+          </section>
+
+          <section class="filter-block">
+            <h3 data-i18n="products.price">Price</h3>
+            <div class="price-range">
+              <label class="price-field">
+                <span data-i18n="products.minPrice">Min price</span>
+                <input id="min-price" type="number" min="0" step="1" placeholder="0">
+              </label>
+              <label class="price-field">
+                <span data-i18n="products.maxPrice">Max price</span>
+                <input id="max-price" type="number" min="0" step="1" placeholder="10000">
+              </label>
+            </div>
+          </section>
+
+          <section class="filter-block">
+            <h3 data-i18n="products.categoryLabel">Category</h3>
+            <div id="filter-categories" class="filter-choice-list"></div>
+          </section>
+
+          <section class="filter-block">
+            <h3 data-i18n="products.tagsLabel">Tags</h3>
+            <div id="filter-tags" class="filter-choice-list filter-choice-list-tags"></div>
+          </section>
+
+          <div class="filter-actions">
+            <button id="apply-filters" class="btn primary" type="submit" data-i18n="products.applyFilters">Apply</button>
+            <button id="reset-filters" class="btn ghost" type="button" data-i18n="products.clearAll">Clear all</button>
+          </div>
+        </form>
+      </aside>
+
+      <div class="collection-content">
+        <div class="collection-results-bar">
+          <p id="collection-results" class="muted">0 products</p>
+        </div>
+
+        <div id="products-grid" class="collection-grid"></div>
+
+        <div id="products-empty" class="collection-empty glass hidden">
+          <h3 data-i18n="products.emptyTitle">No products found</h3>
+          <p class="muted" data-i18n="products.emptyText">Try adjusting filters or search terms.</p>
+          <button id="empty-reset" class="btn ghost" type="button" data-i18n="products.clearAll">Clear all</button>
+        </div>
+
+        <nav id="products-pagination" class="collection-pagination hidden" aria-label="Pagination"></nav>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-left">
+      <div class="logo">Dragon Toys</div>
+      <p class="muted" data-i18n="footer.tagline">Elevated everyday essentials.</p>
+    </div>
+    <div class="footer-right">
+      <a href="#">Twitter</a>
+      <a href="#">Instagram</a>
+      <a href="#" data-i18n="footer.support">Support</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="supabase.js" defer></script>
+  <script src="script.js" defer></script>
+</body>
+</html>

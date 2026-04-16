@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Dragon Toys</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('dragonTheme') || 'light';
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="login">
+  <header class="nav">
+    <a class="logo" href="index.html">Dragon Toys</a>
+    <nav class="nav-links">
+      <a href="index.html" data-i18n="nav.home">Home</a>
+      <a href="products.html" data-i18n="nav.products">Products</a>
+      <a href="login.html" id="nav-login" class="active" data-i18n="nav.login">Login</a>
+      <a href="register.html" id="nav-register" data-i18n="nav.register">Register</a>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme">🌙</button>
+      <a href="cart.html" class="cart cart-link" aria-label="Cart">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h2l1.6 9.4a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L19 8H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span class="cart-count" id="cart-count"></span>
+      </a>
+      <a href="admin.html" id="nav-admin" class="cart cart-link hidden" aria-label="Admin">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v5c0 5 4 8 8 9 4-1 8-4 8-9V7Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 12.5 11 14l4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <a href="profile.html" id="nav-profile" class="cart cart-link profile-link hidden" aria-label="Profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 19c1.2-3 4-4.5 7-4.5s5.8 1.5 7 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <span id="nav-user" class="nav-user muted hidden"></span>
+      <button id="logout" class="btn ghost small-btn hidden" type="button" data-i18n="nav.logout">Logout</button>
+    </nav>
+  </header>
+
+  <main class="auth-wrapper">
+    <div class="auth-card">
+      <h1 data-i18n="auth.loginTitle">Login</h1>
+      <p class="muted" data-i18n="auth.loginSubtitle">Welcome back, please sign in.</p>
+      <form id="login-form" class="checkout-form">
+        <div class="form-row">
+          <label for="login-email" data-i18n="checkout.email">Email</label>
+          <input id="login-email" type="email" required data-i18n-placeholder="checkout.emailPlaceholder" placeholder="you@example.com">
+        </div>
+        <div class="form-row">
+          <label for="login-password" data-i18n="auth.password">Password</label>
+          <input id="login-password" type="password" required placeholder="••••••••">
+        </div>
+        <p id="login-success" class="muted small"></p>
+        <button class="btn primary full" type="submit" data-i18n="nav.login">Login</button>
+        <p class="muted small"><span data-i18n="auth.noAccount">No account?</span> <a href="register.html" data-i18n="nav.register">Register</a></p>
+        <p id="login-error" class="muted small"></p>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-left">
+      <div class="logo">Dragon Toys</div>
+      <p class="muted" data-i18n="footer.tagline">Elevated everyday essentials.</p>
+    </div>
+    <div class="footer-right">
+      <a href="#">Twitter</a>
+      <a href="#">Instagram</a>
+      <a href="#" data-i18n="footer.support">Support</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="supabase.js" defer></script>
+  <script src="script.js" defer></script>
+</body>
+</html>
