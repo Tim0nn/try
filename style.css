@@ -1615,6 +1615,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 .carousel-card {
   flex: 0 0 calc((100% - 48px) / 4);
   min-width: 0;
+  width: auto;
 }
 
 .carousel-dots {
@@ -2842,6 +2843,10 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
     padding: 18px;
   }
 
+  .carousel-track {
+    gap: 10px;
+  }
+
   .select-wrap select {
     width: 100%;
   }
@@ -2959,6 +2964,35 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   }
 
   .collection-card-actions .btn {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+
+  .card {
+    width: auto;
+    min-width: 0;
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .card h3 {
+    min-height: 34px;
+    font-size: 0.9rem;
+  }
+
+  .card img {
+    max-height: 132px;
+    border-radius: 12px;
+  }
+
+  .card-rating {
+    gap: 4px;
+    font-size: 0.8rem;
+    min-height: 20px;
+  }
+
+  .card-actions .btn {
     min-height: 38px;
     padding: 8px 10px;
     font-size: 0.82rem;
@@ -3126,6 +3160,10 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
     gap: 10px;
   }
 
+  .carousel-track {
+    gap: 8px;
+  }
+
   .price-current {
     font-size: 1.55rem;
   }
@@ -3143,6 +3181,62 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   .thumb img {
     width: 68px;
     height: 52px;
+  }
+
+  .collection-grid {
+    gap: 10px;
+  }
+
+  .collection-card {
+    border-radius: 16px;
+  }
+
+  .collection-card-body {
+    padding: 10px;
+    gap: 7px;
+  }
+
+  .collection-card h3 {
+    min-height: 32px;
+    font-size: 0.86rem;
+  }
+
+  .collection-card-meta {
+    font-size: 0.76rem;
+  }
+
+  .collection-card-price .price {
+    font-size: 0.92rem;
+  }
+
+  .collection-card-actions .btn {
+    min-height: 36px;
+    padding: 7px 8px;
+    font-size: 0.78rem;
+  }
+
+  .card {
+    padding: 8px;
+    gap: 5px;
+  }
+
+  .card img {
+    max-height: 116px;
+  }
+
+  .card h3 {
+    min-height: 30px;
+    font-size: 0.84rem;
+  }
+
+  .card-rating {
+    font-size: 0.75rem;
+  }
+
+  .card-actions .btn {
+    min-height: 34px;
+    padding: 7px 8px;
+    font-size: 0.78rem;
   }
 
   .cart-item {
