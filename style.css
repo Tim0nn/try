@@ -3199,52 +3199,56 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
     border-radius: 16px;
   }
 
-  .collection-card-body {
+  .collection-card-media img {
     padding: 10px;
-    gap: 7px;
+  }
+
+  .collection-card-body {
+    padding: 11px 10px 10px;
+    gap: 8px;
   }
 
   .collection-card h3 {
-    min-height: 32px;
-    font-size: 0.86rem;
+    min-height: 36px;
+    font-size: 0.9rem;
   }
 
   .collection-card-meta {
-    font-size: 0.76rem;
+    font-size: 0.8rem;
   }
 
   .collection-card-price .price {
-    font-size: 0.92rem;
+    font-size: 0.98rem;
   }
 
   .collection-card-actions .btn {
-    min-height: 36px;
-    padding: 7px 8px;
-    font-size: 0.78rem;
+    min-height: 38px;
+    padding: 8px 9px;
+    font-size: 0.82rem;
   }
 
   .card {
-    padding: 8px;
-    gap: 5px;
+    padding: 9px;
+    gap: 6px;
   }
 
   .card img {
-    max-height: 116px;
+    max-height: 138px;
   }
 
   .card h3 {
-    min-height: 30px;
-    font-size: 0.84rem;
+    min-height: 34px;
+    font-size: 0.88rem;
   }
 
   .card-rating {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
 
   .card-actions .btn {
-    min-height: 34px;
-    padding: 7px 8px;
-    font-size: 0.78rem;
+    min-height: 38px;
+    padding: 8px 9px;
+    font-size: 0.82rem;
   }
 
   .cart-item {
@@ -3283,10 +3287,19 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 
 @media (max-width: 389px) {
   .collection-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   body[data-page="products"] .product-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card img {
+    max-height: 128px;
+  }
+
+  .collection-card h3,
+  .card h3 {
+    font-size: 0.84rem;
   }
 }

@@ -1613,8 +1613,7 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
   let touchStartY = 0;
   let touchDeltaX = 0;
   let touchDeltaY = 0;
-  let dragStartOffset = 0;
-  let isDragging = false;
+  let touchTracking = false;
   let suppressClickUntil = 0;
 
   const totalSlides = () => Math.max(1, Math.ceil(items.length / itemsPerView));
@@ -1691,7 +1690,7 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
     if (w >= 1440) itemsPerView = 5;
     else if (w >= 1120) itemsPerView = 4;
     else if (w >= 780) itemsPerView = 3;
-    else if (w >= 340) itemsPerView = 2;
+    else if (w >= 320) itemsPerView = 2;
     else itemsPerView = 1;
 
     getCards().forEach((card) => {
@@ -1726,13 +1725,6 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
     computeItemsPerView();
   };
 
-  const finishDrag = (shouldSnap = true) => {
-    if (!isDragging) return;
-    isDragging = false;
-    track.classList.remove('is-dragging');
-    if (shouldSnap) updatePosition();
-  };
-
   const handleTouchStart = (event) => {
     if (totalSlides() <= 1) return;
     const touch = event.touches?.[0];
@@ -1741,33 +1733,31 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
     touchStartY = touch.clientY;
     touchDeltaX = 0;
     touchDeltaY = 0;
-    dragStartOffset = getPageOffset();
-    isDragging = true;
-    track.classList.add('is-dragging');
+    touchTracking = true;
     clearTimeout(timer);
   };
 
   const handleTouchMove = (event) => {
-    if (!isDragging) return;
+    if (!touchTracking) return;
     const touch = event.touches?.[0];
     if (!touch) return;
     touchDeltaX = touch.clientX - touchStartX;
     touchDeltaY = touch.clientY - touchStartY;
-    if (Math.abs(touchDeltaY) > Math.abs(touchDeltaX) && Math.abs(touchDeltaY) > 8) {
-      finishDrag(false);
+    if (Math.abs(touchDeltaY) > Math.abs(touchDeltaX) && Math.abs(touchDeltaY) > 10) {
+      touchTracking = false;
+      resetTimer();
       return;
     }
-    if (Math.abs(touchDeltaX) < 6) return;
-    event.preventDefault();
-    const liveOffset = Math.min(Math.max(dragStartOffset - touchDeltaX, 0), getMaxOffset());
-    setTrackOffset(liveOffset);
+    if (Math.abs(touchDeltaX) > 12 && Math.abs(touchDeltaX) > Math.abs(touchDeltaY)) {
+      event.preventDefault();
+    }
   };
 
   const handleTouchEnd = () => {
-    if (!isDragging) return;
+    if (!touchTracking) return;
+    touchTracking = false;
     const absX = Math.abs(touchDeltaX);
     const absY = Math.abs(touchDeltaY);
-    finishDrag(false);
     if (absX > 42 && absX > absY) {
       suppressClickUntil = Date.now() + 350;
       if (touchDeltaX < 0) next();
@@ -1775,6 +1765,12 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
     } else {
       updatePosition();
     }
+    resetTimer();
+  };
+
+  const handleTouchCancel = () => {
+    touchTracking = false;
+    updatePosition();
     resetTimer();
   };
 
@@ -1788,7 +1784,7 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
   windowEl?.addEventListener('touchstart', handleTouchStart, { passive: true });
   windowEl?.addEventListener('touchmove', handleTouchMove, { passive: false });
   windowEl?.addEventListener('touchend', handleTouchEnd, { passive: true });
-  windowEl?.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+  windowEl?.addEventListener('touchcancel', handleTouchCancel, { passive: true });
   track.addEventListener('click', handleTrackClickCapture, true);
   window.addEventListener('resize', handleResize);
 
@@ -1801,7 +1797,7 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
     windowEl?.removeEventListener('touchstart', handleTouchStart);
     windowEl?.removeEventListener('touchmove', handleTouchMove);
     windowEl?.removeEventListener('touchend', handleTouchEnd);
-    windowEl?.removeEventListener('touchcancel', handleTouchEnd);
+    windowEl?.removeEventListener('touchcancel', handleTouchCancel);
     track.removeEventListener('click', handleTrackClickCapture, true);
   };
 };
