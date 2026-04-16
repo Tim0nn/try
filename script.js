@@ -22,6 +22,7 @@ let cartSyncTimer = null;
 let cartHydratedUserId = null;
 let cartFocusListenerBound = false;
 let cartRemoteAvailable = true;
+let cartRenderToken = 0;
 
 const I18N = {
   en: {
@@ -2468,7 +2469,9 @@ const wireProductsPage = () => {
 
 const renderCartPage = async () => {
   if (document.body.dataset.page !== 'cart') return;
+  const renderToken = ++cartRenderToken;
   await syncCartFromRemote();
+  if (renderToken !== cartRenderToken) return;
 
   const list = document.getElementById('cart-list');
   const totalEl = document.getElementById('cart-total');
@@ -2478,6 +2481,7 @@ const renderCartPage = async () => {
 
   const cart = getCart();
   await ensureProducts(cart.map((c) => c.id));
+  if (renderToken !== cartRenderToken) return;
   let cartChanged = false;
   const merged = cart
     .map((item) => {
@@ -2505,6 +2509,7 @@ const renderCartPage = async () => {
     );
     updateCartCount();
   }
+  if (renderToken !== cartRenderToken) return;
 
   if (!merged.length) {
     empty.classList.remove('hidden');
