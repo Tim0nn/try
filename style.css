@@ -1576,8 +1576,11 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 
 .carousel-window {
   overflow: hidden;
+  width: 100%;
+  min-width: 0;
   padding-top: 10px;
   margin-top: -10px;
+  touch-action: pan-y;
 }
 
 .carousel-track {
@@ -1585,6 +1588,10 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   gap: var(--carousel-gap, 16px);
   transition: transform 650ms ease;
   will-change: transform;
+}
+
+.carousel-track.is-dragging {
+  transition: none;
 }
 
 .carousel-arrow {
@@ -1616,6 +1623,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   flex: 0 0 calc((100% - 48px) / 4);
   min-width: 0;
   width: auto;
+  align-self: stretch;
 }
 
 .carousel-dots {
