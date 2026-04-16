@@ -1666,6 +1666,7 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
     else if (w >= 1180) itemsPerView = 4;
     else if (w >= 820) itemsPerView = 3;
     else if (w >= 560) itemsPerView = 2;
+    else if (w >= 390) itemsPerView = 2;
     else itemsPerView = 1;
 
     track.querySelectorAll('.carousel-card').forEach((card) => {

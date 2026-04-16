@@ -2922,7 +2922,8 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   }
 
   .collection-grid {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .collection-grid[data-view="list"] .collection-card {
@@ -2931,8 +2932,36 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 
   .collection-grid[data-view="list"] .collection-card-media img {
     min-height: 0;
-    max-height: 220px;
-    padding: 18px;
+    max-height: 200px;
+    padding: 16px;
+  }
+
+  .collection-card {
+    border-radius: 18px;
+  }
+
+  .collection-card-body {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .collection-card h3 {
+    min-height: 36px;
+    font-size: 0.92rem;
+  }
+
+  .collection-card-meta {
+    font-size: 0.8rem;
+  }
+
+  .collection-card-price .price {
+    font-size: 0.98rem;
+  }
+
+  .collection-card-actions .btn {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
   }
 
   .collection-grid[data-view="list"] .collection-card-body {
@@ -3049,12 +3078,13 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   }
 
   body[data-page="products"] .product-grid {
-    grid-template-columns: repeat(auto-fill, minmax(168px, 168px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
   body[data-page="products"] #products-grid .card {
-    width: 168px;
+    width: auto;
+    min-width: 0;
     padding: 9px;
   }
 
@@ -3146,5 +3176,15 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 
   .carousel-dots button {
     width: 22px;
+  }
+}
+
+@media (max-width: 389px) {
+  .collection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="products"] .product-grid {
+    grid-template-columns: 1fr;
   }
 }
