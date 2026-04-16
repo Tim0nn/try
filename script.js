@@ -3,6 +3,7 @@ let orders = [];
 let supportMessages = [];
 
 const CART_KEY = 'novaCart';
+const CART_SOURCE_KEY = 'dragonCartSource';
 let observer;
 let sentinelEl;
 const THEME_KEY = 'dragonTheme';
@@ -693,10 +694,23 @@ const readLocalCart = () => {
 
 const writeLocalCart = (cart) => localStorage.setItem(CART_KEY, JSON.stringify(cart.map(normalizeCartItem)));
 
-const setCartCache = (cart, { persistLocal = true } = {}) => {
+const getLocalCartSource = () => localStorage.getItem(CART_SOURCE_KEY) || 'guest';
+
+const setLocalCartSource = (value) => {
+  if (!value) {
+    localStorage.removeItem(CART_SOURCE_KEY);
+    return;
+  }
+  localStorage.setItem(CART_SOURCE_KEY, value);
+};
+
+const setCartCache = (cart, { persistLocal = true, source } = {}) => {
   const normalized = (Array.isArray(cart) ? cart : []).map(normalizeCartItem);
   cartCache = normalized;
-  if (persistLocal) writeLocalCart(normalized);
+  if (persistLocal) {
+    writeLocalCart(normalized);
+    if (source !== undefined) setLocalCartSource(source);
+  }
   return normalized;
 };
 
@@ -747,6 +761,7 @@ const syncCartToRemote = async (cart = getCart()) => {
   const normalized = cart.map(normalizeCartItem);
   try {
     await window.db.upsertCartDb(normalized);
+    setLocalCartSource(`user:${user.id}`);
     cartHydratedUserId = user.id;
   } catch (error) {
     maybeDisableRemoteCartSync(error);
@@ -780,20 +795,24 @@ const syncCartFromRemote = async ({ force = false } = {}) => {
   if (cartSyncPromise) return cartSyncPromise;
   cartSyncPromise = (async () => {
     const localCart = readLocalCart();
+    const localSource = getLocalCartSource();
+    const userSource = `user:${user.id}`;
     try {
       const remoteCart = await window.db.fetchCartDb();
-      const merged = mergeCartSources(remoteCart, localCart);
-      setCartCache(merged);
+      const remoteNormalized = (Array.isArray(remoteCart) ? remoteCart : []).map(normalizeCartItem);
+      const shouldMergeGuestCart = localSource === 'guest' && localCart.length > 0;
+      const nextCart = shouldMergeGuestCart ? mergeCartSources(remoteNormalized, localCart) : remoteNormalized;
+      setCartCache(nextCart, { source: userSource });
       cartHydratedUserId = user.id;
-      if (!cartsEqual(remoteCart, merged)) {
-        await window.db.upsertCartDb(merged);
+      if (shouldMergeGuestCart && !cartsEqual(remoteNormalized, nextCart)) {
+        await window.db.upsertCartDb(nextCart);
       }
       updateCartCount();
-      return merged;
+      return nextCart;
     } catch (error) {
       maybeDisableRemoteCartSync(error);
       console.error('Cart hydrate failed', error);
-      const fallback = setCartCache(localCart);
+      const fallback = setCartCache(localCart, { source: localSource });
       cartHydratedUserId = user.id;
       updateCartCount();
       return fallback;
@@ -805,7 +824,8 @@ const syncCartFromRemote = async ({ force = false } = {}) => {
 };
 
 const saveCart = (cart, { sync = true } = {}) => {
-  const normalized = setCartCache(cart);
+  const user = getCurrentUserState();
+  const normalized = setCartCache(cart, { source: user ? `user:${user.id}` : 'guest' });
   if (sync) scheduleCartSync();
   return normalized;
 };
@@ -814,6 +834,13 @@ const clearCart = async () => {
   setCartCache([]);
   updateCartCount();
   await syncCartToRemote([]);
+};
+
+const syncCartImmediately = (cart = getCart()) => {
+  clearTimeout(cartSyncTimer);
+  return syncCartToRemote(cart).catch((error) => {
+    console.error('Immediate cart sync failed', error);
+  });
 };
 
 const cartCount = (cart) => cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -956,6 +983,17 @@ const initAuth = async () => {
     window.addEventListener('focus', () => {
       syncCartFromRemote({ force: true }).catch((error) => {
         console.error('Cart refresh on focus failed', error);
+      });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      syncCartFromRemote({ force: true }).catch((error) => {
+        console.error('Cart refresh on visibility change failed', error);
+      });
+    });
+    window.addEventListener('pageshow', () => {
+      syncCartFromRemote({ force: true }).catch((error) => {
+        console.error('Cart refresh on pageshow failed', error);
       });
     });
   }
@@ -1583,6 +1621,7 @@ const addToCart = async (productIdRaw, options = {}) => {
     });
   }
   saveCart(cart);
+  syncCartImmediately(cart);
   updateCartCount();
   animateAddToCart(options?.triggerEl, snapshot);
   if (document.body.dataset.page === 'cart') {
@@ -2749,6 +2788,7 @@ const updateQuantity = (id, qty) => {
   if (!item) return;
   item.quantity = clampCartQtyByStock(id, qty);
   saveCart(cart);
+  syncCartImmediately(cart);
   updateCartCount();
   renderCartPage();
 };
@@ -2759,6 +2799,7 @@ const adjustQuantity = (id, delta) => {
   if (!item) return;
   item.quantity = clampCartQtyByStock(id, item.quantity + delta);
   saveCart(cart);
+  syncCartImmediately(cart);
   updateCartCount();
   renderCartPage();
 };
@@ -2767,6 +2808,7 @@ const removeItem = (id) => {
   let cart = getCart();
   cart = cart.filter((c) => !idsEqual(c.id, id));
   saveCart(cart);
+  syncCartImmediately(cart);
   updateCartCount();
   renderCartPage();
 };
