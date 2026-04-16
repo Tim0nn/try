@@ -2468,7 +2468,7 @@ const wireProductsPage = () => {
 
 const renderCartPage = async () => {
   if (document.body.dataset.page !== 'cart') return;
-  await syncCartFromRemote({ force: true });
+  await syncCartFromRemote();
 
   const list = document.getElementById('cart-list');
   const totalEl = document.getElementById('cart-total');
@@ -2883,7 +2883,7 @@ const renderCheckout = async () => {
     window.location.href = `login.html?redirect=${encodeURIComponent('checkout.html')}`;
     return;
   }
-  await syncCartFromRemote({ force: true });
+  await syncCartFromRemote();
 
   const itemsWrap = document.getElementById('checkout-items');
   const totalEl = document.getElementById('checkout-total');
