@@ -446,6 +446,30 @@ async function upsertCartDb(items = []) {
   return Array.isArray(data?.[0]?.items) ? data[0].items : payload.items;
 }
 
+function onCartChangeDb(userId, callback) {
+  const channel = supabaseClient
+    .channel(`user-cart-${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'user_carts',
+        filter: `user_id=eq.${userId}`
+      },
+      (payload) => {
+        callback?.(payload);
+      }
+    )
+    .subscribe();
+  return channel;
+}
+
+async function offCartChangeDb(channel) {
+  if (!channel) return;
+  await supabaseClient.removeChannel(channel);
+}
+
 function onAuthChange(callback) {
   return supabaseClient.auth.onAuthStateChange((event, session) => {
     callback?.(event, session);
@@ -476,5 +500,7 @@ window.db = {
   getUserRoleDb,
   fetchCartDb,
   upsertCartDb,
+  onCartChangeDb,
+  offCartChangeDb,
   onAuthChange
 };

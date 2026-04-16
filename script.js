@@ -24,6 +24,7 @@ let cartHydratedUserId = null;
 let cartFocusListenerBound = false;
 let cartRemoteAvailable = true;
 let cartRenderToken = 0;
+let cartRealtimeSubscription = null;
 
 const I18N = {
   en: {
@@ -843,6 +844,60 @@ const syncCartImmediately = (cart = getCart()) => {
   });
 };
 
+const stopCartRealtime = async () => {
+  if (!cartRealtimeSubscription || !window.db?.offCartChangeDb) {
+    cartRealtimeSubscription = null;
+    return;
+  }
+  try {
+    await window.db.offCartChangeDb(cartRealtimeSubscription);
+  } catch (error) {
+    console.error('Cart realtime unsubscribe failed', error);
+  } finally {
+    cartRealtimeSubscription = null;
+  }
+};
+
+const handleRemoteCartItems = async (items = []) => {
+  const user = getCurrentUserState();
+  const source = user ? `user:${user.id}` : 'guest';
+  setCartCache(Array.isArray(items) ? items : [], { source });
+  cartHydratedUserId = user?.id || null;
+  updateCartCount();
+  if (document.body.dataset.page === 'cart') {
+    await renderCartPage();
+    renderRecommended();
+  } else if (document.body.dataset.page === 'checkout') {
+    await renderCheckout();
+  }
+};
+
+const startCartRealtime = async () => {
+  const user = getCurrentUserState();
+  if (!cartRemoteAvailable || !user || !window.db?.onCartChangeDb) {
+    await stopCartRealtime();
+    return;
+  }
+  await stopCartRealtime();
+  try {
+    cartRealtimeSubscription = window.db.onCartChangeDb(user.id, async (payload) => {
+      const nextItems = Array.isArray(payload?.new?.items)
+        ? payload.new.items
+        : Array.isArray(payload?.items)
+        ? payload.items
+        : null;
+      if (nextItems) {
+        await handleRemoteCartItems(nextItems);
+        return;
+      }
+      const refreshed = await syncCartFromRemote({ force: true });
+      await handleRemoteCartItems(refreshed);
+    });
+  } catch (error) {
+    console.error('Cart realtime subscribe failed', error);
+  }
+};
+
 const cartCount = (cart) => cart.reduce((sum, item) => sum + item.quantity, 0);
 
 const normalizeSpecs = (items = []) =>
@@ -978,6 +1033,7 @@ const initAuth = async () => {
   await getCurrentUser();
   await getUserRole();
   await syncCartFromRemote({ force: true });
+  await startCartRealtime();
   if (!cartFocusListenerBound) {
     cartFocusListenerBound = true;
     window.addEventListener('focus', () => {
@@ -1004,8 +1060,10 @@ const initAuth = async () => {
         if (session?.user) {
           await getUserRole();
           await syncCartFromRemote({ force: true });
+          await startCartRealtime();
         } else {
           setCurrentUserRole(null);
+          await stopCartRealtime();
           cartHydratedUserId = null;
           setCartCache(readLocalCart(), { persistLocal: false });
           updateCartCount();
