@@ -16,6 +16,12 @@ let currentLanguage = 'en';
 let currentUser = null;
 let currentUserRole = null;
 let authSubscription = null;
+let cartCache = null;
+let cartSyncPromise = null;
+let cartSyncTimer = null;
+let cartHydratedUserId = null;
+let cartFocusListenerBound = false;
+let cartRemoteAvailable = true;
 
 const I18N = {
   en: {
@@ -674,7 +680,7 @@ const normalizeCartItem = (item) => ({
   stock_quantity: parseQty(item.stock_quantity ?? item.product_quantity ?? item.quantity_available ?? item.quantity ?? item.qty ?? 0)
 });
 
-const getCart = () => {
+const readLocalCart = () => {
   const stored = localStorage.getItem(CART_KEY);
   try {
     const parsed = stored ? JSON.parse(stored) : [];
@@ -684,7 +690,130 @@ const getCart = () => {
   }
 };
 
-const saveCart = (cart) => localStorage.setItem(CART_KEY, JSON.stringify(cart.map(normalizeCartItem)));
+const writeLocalCart = (cart) => localStorage.setItem(CART_KEY, JSON.stringify(cart.map(normalizeCartItem)));
+
+const setCartCache = (cart, { persistLocal = true } = {}) => {
+  const normalized = (Array.isArray(cart) ? cart : []).map(normalizeCartItem);
+  cartCache = normalized;
+  if (persistLocal) writeLocalCart(normalized);
+  return normalized;
+};
+
+const getCart = () => {
+  if (Array.isArray(cartCache)) return cartCache.map(normalizeCartItem);
+  return setCartCache(readLocalCart(), { persistLocal: false });
+};
+
+const cartsEqual = (left = [], right = []) => JSON.stringify(left.map(normalizeCartItem)) === JSON.stringify(right.map(normalizeCartItem));
+
+const mergeCartSources = (remoteCart = [], localCart = []) => {
+  const merged = new Map();
+  remoteCart.map(normalizeCartItem).forEach((item) => {
+    merged.set(item.id, item);
+  });
+  localCart.map(normalizeCartItem).forEach((item) => {
+    const existing = merged.get(item.id);
+    if (!existing) {
+      merged.set(item.id, item);
+      return;
+    }
+    merged.set(item.id, {
+      ...existing,
+      quantity: Math.max(existing.quantity, item.quantity),
+      image_url: existing.image_url || item.image_url,
+      category: existing.category || item.category,
+      desc: existing.desc || item.desc,
+      country: existing.country || item.country,
+      size: existing.size || item.size,
+      tags: Array.isArray(existing.tags) && existing.tags.length ? existing.tags : item.tags,
+      stock_quantity: Math.max(parseQty(existing.stock_quantity), parseQty(item.stock_quantity))
+    });
+  });
+  return Array.from(merged.values()).map(normalizeCartItem);
+};
+
+const maybeDisableRemoteCartSync = (error) => {
+  const message = String(error?.message || '').toLowerCase();
+  if (!message) return;
+  if (message.includes('user_carts') && (message.includes('does not exist') || message.includes('relation') || message.includes('schema cache') || message.includes('could not find'))) {
+    cartRemoteAvailable = false;
+  }
+};
+
+const syncCartToRemote = async (cart = getCart()) => {
+  const user = getCurrentUserState();
+  if (!cartRemoteAvailable || !user || !window.db?.upsertCartDb) return cart.map(normalizeCartItem);
+  const normalized = cart.map(normalizeCartItem);
+  try {
+    await window.db.upsertCartDb(normalized);
+    cartHydratedUserId = user.id;
+  } catch (error) {
+    maybeDisableRemoteCartSync(error);
+    console.error('Cart sync failed', error);
+  }
+  return normalized;
+};
+
+const scheduleCartSync = () => {
+  clearTimeout(cartSyncTimer);
+  const user = getCurrentUserState();
+  if (!cartRemoteAvailable || !user || !window.db?.upsertCartDb) return;
+  cartSyncTimer = setTimeout(() => {
+    syncCartToRemote().catch((error) => {
+      console.error('Deferred cart sync failed', error);
+    });
+  }, 220);
+};
+
+const syncCartFromRemote = async ({ force = false } = {}) => {
+  const user = getCurrentUserState();
+  if (!cartRemoteAvailable || !user || !window.db?.fetchCartDb) {
+    cartHydratedUserId = null;
+    const fallback = setCartCache(readLocalCart(), { persistLocal: false });
+    updateCartCount();
+    return fallback;
+  }
+  if (!force && cartHydratedUserId === user.id && Array.isArray(cartCache)) {
+    return getCart();
+  }
+  if (cartSyncPromise) return cartSyncPromise;
+  cartSyncPromise = (async () => {
+    const localCart = readLocalCart();
+    try {
+      const remoteCart = await window.db.fetchCartDb();
+      const merged = mergeCartSources(remoteCart, localCart);
+      setCartCache(merged);
+      cartHydratedUserId = user.id;
+      if (!cartsEqual(remoteCart, merged)) {
+        await window.db.upsertCartDb(merged);
+      }
+      updateCartCount();
+      return merged;
+    } catch (error) {
+      maybeDisableRemoteCartSync(error);
+      console.error('Cart hydrate failed', error);
+      const fallback = setCartCache(localCart);
+      cartHydratedUserId = user.id;
+      updateCartCount();
+      return fallback;
+    } finally {
+      cartSyncPromise = null;
+    }
+  })();
+  return cartSyncPromise;
+};
+
+const saveCart = (cart, { sync = true } = {}) => {
+  const normalized = setCartCache(cart);
+  if (sync) scheduleCartSync();
+  return normalized;
+};
+
+const clearCart = async () => {
+  setCartCache([]);
+  updateCartCount();
+  await syncCartToRemote([]);
+};
 
 const cartCount = (cart) => cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -820,14 +949,27 @@ async function getUserRole() {
 const initAuth = async () => {
   await getCurrentUser();
   await getUserRole();
+  await syncCartFromRemote({ force: true });
+  if (!cartFocusListenerBound) {
+    cartFocusListenerBound = true;
+    window.addEventListener('focus', () => {
+      syncCartFromRemote({ force: true }).catch((error) => {
+        console.error('Cart refresh on focus failed', error);
+      });
+    });
+  }
   if (window.db?.onAuthChange && !authSubscription) {
     const result = window.db.onAuthChange((_event, session) => {
       (async () => {
         setCurrentUser(session?.user || null);
         if (session?.user) {
           await getUserRole();
+          await syncCartFromRemote({ force: true });
         } else {
           setCurrentUserRole(null);
+          cartHydratedUserId = null;
+          setCartCache(readLocalCart(), { persistLocal: false });
+          updateCartCount();
         }
       })().catch((error) => {
         console.error('Auth state change failed', error);
@@ -2252,6 +2394,7 @@ const wireProductsPage = () => {
 
 const renderCartPage = async () => {
   if (document.body.dataset.page !== 'cart') return;
+  await syncCartFromRemote({ force: true });
 
   const list = document.getElementById('cart-list');
   const totalEl = document.getElementById('cart-total');
@@ -2666,6 +2809,7 @@ const renderCheckout = async () => {
     window.location.href = `login.html?redirect=${encodeURIComponent('checkout.html')}`;
     return;
   }
+  await syncCartFromRemote({ force: true });
 
   const itemsWrap = document.getElementById('checkout-items');
   const totalEl = document.getElementById('checkout-total');
@@ -2830,8 +2974,7 @@ const renderCheckout = async () => {
           throw new Error(t('checkout.paymentFailed'));
         }
 
-        localStorage.removeItem(CART_KEY);
-        updateCartCount();
+        await clearCart();
         setFeedback('', '');
         confirmation.classList.remove('hidden');
         confirmation.textContent = t('checkout.thanks');

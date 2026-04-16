@@ -3303,3 +3303,409 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
     font-size: 0.84rem;
   }
 }
+
+@media (max-width: 720px) {
+  .nav {
+    padding: 12px 4vw;
+    gap: 10px;
+  }
+
+  .logo {
+    font-size: 0.94rem;
+    letter-spacing: 0.06em;
+  }
+
+  .nav-links {
+    gap: 7px;
+    padding-bottom: 2px;
+  }
+
+  .nav-links a,
+  .small-btn,
+  .theme-toggle,
+  .lang-toggle,
+  .cart-link {
+    min-height: 40px;
+  }
+
+  .nav-links a {
+    padding: 8px 10px;
+    font-size: 0.86rem;
+    border-radius: 10px;
+  }
+
+  .theme-toggle,
+  .cart-link {
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .small-btn {
+    padding: 8px 10px;
+    font-size: 0.84rem;
+  }
+
+  .cart-count {
+    top: 2px;
+    right: 0;
+  }
+
+  .nav-user {
+    width: auto;
+    order: 0;
+    font-size: 0.82rem;
+  }
+
+  .section {
+    padding: 26px 4vw;
+  }
+
+  .section-header {
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+
+  .section-header h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 6.4vw, 1.9rem);
+  }
+
+  .section-header h2 {
+    margin: 0;
+    font-size: clamp(1.25rem, 5.4vw, 1.55rem);
+  }
+
+  .hero {
+    padding: 56px 4vw 24px;
+    gap: 18px;
+  }
+
+  .eyebrow {
+    font-size: 0.74rem;
+  }
+
+  .lede,
+  .section-header .muted,
+  .collection-subtitle {
+    font-size: 0.92rem;
+  }
+
+  .hero-visual {
+    min-height: 210px;
+    border-radius: 20px;
+  }
+
+  .hero-image {
+    inset: 6px;
+    border-radius: 16px;
+  }
+
+  .home-popular-shell {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .home-popular-head .muted {
+    max-width: 32ch;
+  }
+
+  .collection-hero,
+  .collection-toolbar,
+  .collection-filters,
+  .cart-summary,
+  .checkout-form,
+  .order-status,
+  .profile-info-card,
+  .profile-current-card {
+    border-radius: 18px;
+  }
+
+  .collection-hero {
+    padding: 16px;
+  }
+
+  .collection-title-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .collection-title-row h1 {
+    margin: 0 0 4px;
+    font-size: 1.45rem;
+  }
+
+  .collection-count-pill,
+  .collection-toolbar-count {
+    justify-self: flex-start;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .collection-toolbar {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .collection-toolbar-group {
+    gap: 8px;
+  }
+
+  .search input,
+  .collection-search input,
+  .select-wrap select,
+  .sort-field select,
+  .price-field input,
+  .checkout-form input,
+  .checkout-form textarea,
+  .checkout-form select,
+  .select-toggle {
+    min-height: 40px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 0.92rem;
+  }
+
+  .filter-choice {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .collection-filters {
+    padding: 14px;
+    top: 76px;
+  }
+
+  .filter-actions {
+    gap: 8px;
+  }
+
+  .cart-wrapper,
+  .checkout-grid,
+  .profile-page,
+  .order-history,
+  .product-page {
+    gap: 14px;
+  }
+
+  .cart-item,
+  .checkout-item,
+  .history-row,
+  .profile-stat-card,
+  .profile-detail-card,
+  .profile-order-extra {
+    padding: 12px;
+  }
+
+  .cart-item {
+    grid-template-columns: 76px 1fr;
+    gap: 10px;
+  }
+
+  .cart-item img,
+  .checkout-item img {
+    width: 76px;
+    height: 76px;
+    border-radius: 10px;
+  }
+
+  .cart-detail h3,
+  .checkout-item h3,
+  .history-main strong {
+    font-size: 0.96rem;
+  }
+
+  .cart-controls {
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .qty-controls {
+    gap: 6px;
+  }
+
+  .qty-input {
+    width: 58px;
+    padding: 9px 8px;
+  }
+
+  .qty-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .cart-summary,
+  .checkout-form {
+    padding: 14px;
+  }
+
+  .checkout-item {
+    gap: 10px;
+  }
+
+  .checkout-form h3,
+  .cart-summary h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+  }
+
+  .product-page .product-layout {
+    gap: 16px;
+    padding: 14px;
+  }
+
+  .product-info h1 {
+    font-size: 1.5rem;
+    line-height: 1.15;
+  }
+
+  .price-current {
+    font-size: 1.42rem;
+  }
+
+  .product-main-image img {
+    max-height: 300px;
+  }
+
+  .thumbs {
+    gap: 8px;
+  }
+
+  .thumb img {
+    width: 64px;
+    height: 50px;
+  }
+
+  .purchase-actions .btn {
+    min-height: 42px;
+  }
+
+  .profile-summary,
+  .profile-featured-order,
+  .history-row {
+    gap: 12px;
+  }
+
+  .profile-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    font-size: 1.28rem;
+  }
+
+  .profile-summary-copy h3,
+  .profile-featured-head h3 {
+    font-size: 1.1rem;
+  }
+
+  .history-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .nav {
+    padding: 10px 4vw;
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 0.9rem;
+  }
+
+  .nav-links {
+    gap: 6px;
+  }
+
+  .nav-links a {
+    padding: 7px 9px;
+    font-size: 0.82rem;
+  }
+
+  .small-btn,
+  .theme-toggle,
+  .lang-toggle,
+  .cart-link {
+    min-height: 38px;
+    height: 38px;
+  }
+
+  .theme-toggle,
+  .cart-link {
+    width: 38px;
+  }
+
+  .nav-user {
+    font-size: 0.78rem;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(1.7rem, 8vw, 2rem);
+  }
+
+  .hero-visual {
+    min-height: 188px;
+  }
+
+  .hero-actions {
+    gap: 10px;
+  }
+
+  .home-popular-shell,
+  .collection-toolbar,
+  .collection-hero,
+  .collection-filters,
+  .cart-summary,
+  .checkout-form,
+  .product-page .product-layout {
+    padding: 12px;
+  }
+
+  .collection-title-row h1 {
+    font-size: 1.32rem;
+  }
+
+  .collection-count-pill,
+  .collection-toolbar-count {
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+  }
+
+  .cart-item {
+    grid-template-columns: 72px 1fr;
+    padding: 10px;
+  }
+
+  .cart-item img,
+  .checkout-item img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .checkout-item {
+    padding: 10px;
+  }
+
+  .summary-row {
+    margin: 10px 0 14px;
+  }
+
+  .profile-stat-card strong,
+  .profile-detail-card strong {
+    font-size: 0.98rem;
+  }
+
+  .history-row {
+    padding: 12px;
+  }
+
+  .history-side {
+    gap: 6px;
+  }
+}

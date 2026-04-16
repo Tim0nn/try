@@ -411,6 +411,41 @@ async function getUserRoleDb() {
   return data?.role || null;
 }
 
+async function fetchCartDb() {
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  console.log('DATA:', authData);
+  console.log('ERROR:', authError);
+  if (authError) throw authError;
+  const user = authData?.user || null;
+  if (!user) return [];
+
+  const { data, error } = await supabaseClient.from('user_carts').select('items').eq('user_id', user.id).maybeSingle();
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return Array.isArray(data?.items) ? data.items : [];
+}
+
+async function upsertCartDb(items = []) {
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  console.log('DATA:', authData);
+  console.log('ERROR:', authError);
+  if (authError) throw authError;
+  const user = authData?.user || null;
+  if (!user) throw new Error('Authenticated user required for cart sync');
+
+  const payload = {
+    user_id: user.id,
+    items: Array.isArray(items) ? items : [],
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await supabaseClient.from('user_carts').upsert(payload).select('items');
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return Array.isArray(data?.[0]?.items) ? data[0].items : payload.items;
+}
+
 function onAuthChange(callback) {
   return supabaseClient.auth.onAuthStateChange((event, session) => {
     callback?.(event, session);
@@ -439,5 +474,7 @@ window.db = {
   signOutAuth,
   getAuthUser,
   getUserRoleDb,
+  fetchCartDb,
+  upsertCartDb,
   onAuthChange
 };
