@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Profile - Dragon Toys</title>
+  <title>Wishlist - Dragon Toys</title>
   <script>
     (function () {
       try {
@@ -14,7 +14,7 @@
   </script>
   <link rel="stylesheet" href="style.css">
 </head>
-<body data-page="profile">
+<body data-page="wishlist">
   <header class="nav">
     <a class="logo" href="index.html">Dragon Toys</a>
     <nav class="nav-links">
@@ -22,14 +22,11 @@
       <a href="products.html" data-i18n="nav.products">Products</a>
       <a href="login.html" id="nav-login" data-i18n="nav.login">Login</a>
       <a href="register.html" id="nav-register" data-i18n="nav.register">Register</a>
-      <a href="wishlist.html" id="nav-wishlist" class="cart cart-link wishlist-link" aria-label="Wishlist">
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme">theme</button>
+      <a href="wishlist.html" id="nav-wishlist" class="cart cart-link wishlist-link active" aria-label="Wishlist">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.2 4.9 13.4a4.8 4.8 0 0 1 6.8-6.8L12 7l.3-.4a4.8 4.8 0 0 1 6.8 6.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="cart-count hidden" id="wishlist-count"></span>
       </a>
-      <a href="profile.html" id="nav-profile" class="cart cart-link profile-link active" aria-label="Profile">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 19c1.2-3 4-4.5 7-4.5s5.8 1.5 7 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      </a>
-      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme">theme</button>
       <a href="cart.html" class="cart cart-link" aria-label="Cart">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h2l1.6 9.4a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L19 8H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
         <span class="cart-count" id="cart-count"></span>
@@ -37,28 +34,30 @@
       <a href="admin.html" id="nav-admin" class="cart cart-link hidden" aria-label="Admin">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v5c0 5 4 8 8 9 4-1 8-4 8-9V7Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 12.5 11 14l4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       </a>
-      <span id="nav-user" class="nav-user muted hidden"></span>
+      <a href="profile.html" id="nav-profile" class="cart cart-link profile-link hidden" aria-label="Profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 19c1.2-3 4-4.5 7-4.5s5.8 1.5 7 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
       <button id="logout" class="btn ghost small-btn hidden" type="button" data-i18n="nav.logout">Logout</button>
+      <span id="nav-user" class="nav-user muted hidden"></span>
     </nav>
   </header>
 
-  <main class="section profile-page">
+  <main class="section wishlist-page">
+    <div class="page-actions">
+      <button class="back-btn" type="button" data-i18n="nav.back">Back</button>
+    </div>
     <div class="section-header">
       <div>
-        <h1 data-i18n="profile.title">Your profile</h1>
-        <p class="muted" data-i18n="profile.subtitle">Track active orders and revisit your history.</p>
+        <h1 data-i18n="wishlist.title">Wishlist</h1>
+        <p class="muted" data-i18n="wishlist.subtitle">Save favorites and come back when you are ready.</p>
       </div>
+      <p class="muted small"><span id="wishlist-count-text">0</span></p>
     </div>
-
-    <div id="profile-info" class="order-status glass profile-info-card"></div>
-
-    <div id="order-status" class="order-status glass profile-current-card"></div>
-
-    <div class="section-header profile-history-head">
-      <h2 data-i18n="profile.history">Order history</h2>
-      <p class="muted small" data-i18n="profile.historySubtitle">Recent orders and delivery details.</p>
+    <div id="wishlist-empty" class="empty-state hidden">
+      <p class="muted" data-i18n="wishlist.empty">Your wishlist is empty. Tap the heart on products you like.</p>
+      <a href="products.html" class="btn primary" data-i18n="wishlist.browse">Browse products</a>
     </div>
-    <div id="order-history" class="order-history"></div>
+    <div id="wishlist-grid" class="collection-grid"></div>
   </main>
 
   <footer class="footer">

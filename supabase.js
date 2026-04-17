@@ -137,6 +137,19 @@ const mapSupportMessage = (row) => ({
   answered_at: row.answered_at || ''
 });
 
+const mapReview = (row) => ({
+  id: row.id != null ? String(row.id) : String(Date.now()),
+  product_id: row.product_id != null ? String(row.product_id) : '',
+  user_id: row.user_id || '',
+  user_email: row.user_email || '',
+  user_name: row.user_name || '',
+  rating: Number(row.rating) || 0,
+  comment: row.comment || '',
+  status: row.status || 'pending',
+  created_at: row.created_at || '',
+  updated_at: row.updated_at || ''
+});
+
 async function fetchOrdersDb(filters = {}) {
   let query = supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
   if (filters.user_email) query = query.eq('user_email', filters.user_email);
@@ -242,6 +255,183 @@ async function updateSupportMessageDb(id, patch) {
   console.log('ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapSupportMessage);
+}
+
+async function fetchFavoritesDb() {
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  console.log('DATA:', authData);
+  console.log('ERROR:', authError);
+  if (authError) throw authError;
+  const user = authData?.user || null;
+  if (!user) return [];
+
+  const { data, error } = await supabaseClient
+    .from('user_favorites')
+    .select('product_id, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return (data || []).map((row) => String(row.product_id)).filter(Boolean);
+}
+
+async function addFavoriteDb(productId) {
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  console.log('DATA:', authData);
+  console.log('ERROR:', authError);
+  if (authError) throw authError;
+  const user = authData?.user || null;
+  if (!user) throw new Error('Authenticated user required for favorites');
+
+  const payload = {
+    user_id: user.id,
+    product_id: String(productId || '').trim(),
+    created_at: new Date().toISOString()
+  };
+  const { data, error } = await supabaseClient
+    .from('user_favorites')
+    .upsert(payload, { onConflict: 'user_id,product_id' })
+    .select('product_id');
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return (data || []).map((row) => String(row.product_id)).filter(Boolean);
+}
+
+async function removeFavoriteDb(productId) {
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  console.log('DATA:', authData);
+  console.log('ERROR:', authError);
+  if (authError) throw authError;
+  const user = authData?.user || null;
+  if (!user) throw new Error('Authenticated user required for favorites');
+
+  const { data, error } = await supabaseClient
+    .from('user_favorites')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('product_id', String(productId || '').trim())
+    .select('product_id');
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return true;
+}
+
+async function fetchReviewsDb(filters = {}) {
+  let query = supabaseClient.from('product_reviews').select('*').order('created_at', { ascending: false });
+  if (filters.product_id) query = query.eq('product_id', String(filters.product_id));
+  if (filters.status) query = query.eq('status', filters.status);
+  if (filters.user_id) query = query.eq('user_id', filters.user_id);
+  const { data, error } = await query;
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return (data || []).map(mapReview);
+}
+
+async function upsertReviewDb(payload = {}) {
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  console.log('DATA:', authData);
+  console.log('ERROR:', authError);
+  if (authError) throw authError;
+  const user = authData?.user || null;
+  if (!user) throw new Error('Authenticated user required for review');
+
+  const productId = String(payload.product_id || '').trim();
+  if (!productId) throw new Error('product_id is required');
+
+  const userName = String(payload.user_name || user.user_metadata?.full_name || user.email || '').trim();
+  const userEmail = String(payload.user_email || user.email || '').trim().toLowerCase();
+  const rating = Number(payload.rating) || 0;
+  const comment = String(payload.comment || '').trim();
+  const status = String(payload.status || 'pending').trim() || 'pending';
+  const basePatch = {
+    product_id: productId,
+    user_id: user.id,
+    user_email: userEmail,
+    user_name: userName,
+    rating,
+    comment,
+    status,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data: existing, error: existingError } = await supabaseClient
+    .from('product_reviews')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('product_id', productId)
+    .maybeSingle();
+  console.log('DATA:', existing);
+  console.log('ERROR:', existingError);
+  if (existingError) throw existingError;
+
+  if (existing?.id) {
+    const { data, error } = await supabaseClient.from('product_reviews').update(basePatch).eq('id', existing.id).select('*');
+    console.log('DATA:', data);
+    console.log('ERROR:', error);
+    if (error) throw error;
+    return (data || []).map(mapReview);
+  }
+
+  const insertPayload = {
+    ...basePatch,
+    created_at: new Date().toISOString()
+  };
+  const { data, error } = await supabaseClient.from('product_reviews').insert([insertPayload]).select('*');
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return (data || []).map(mapReview);
+}
+
+async function updateReviewDb(id, patch = {}) {
+  const payload = {
+    ...patch,
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await supabaseClient.from('product_reviews').update(payload).eq('id', id).select('*');
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return (data || []).map(mapReview);
+}
+
+async function deleteReviewDb(id) {
+  const { data, error } = await supabaseClient.from('product_reviews').delete().eq('id', id).select('*');
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return (data || []).map(mapReview);
+}
+
+async function recalculateProductRatingDb(productId) {
+  const normalizedId = String(productId || '').trim();
+  if (!normalizedId) return null;
+  const { data: reviews, error: reviewsError } = await supabaseClient
+    .from('product_reviews')
+    .select('rating')
+    .eq('product_id', normalizedId)
+    .eq('status', 'approved');
+  console.log('DATA:', reviews);
+  console.log('ERROR:', reviewsError);
+  if (reviewsError) throw reviewsError;
+
+  const rows = Array.isArray(reviews) ? reviews : [];
+  const reviewsCount = rows.length;
+  const rating = reviewsCount ? rows.reduce((sum, row) => sum + (Number(row.rating) || 0), 0) / reviewsCount : 0;
+
+  const { data, error } = await supabaseClient
+    .from('products')
+    .update({ rating, reviews_count: reviewsCount })
+    .eq('id', toDbId(normalizedId))
+    .select('*');
+  console.log('DATA:', data);
+  console.log('ERROR:', error);
+  if (error) throw error;
+  return (data || []).map(mapProduct)?.[0] || null;
 }
 
 async function reserveProductQuantitiesDb(items = []) {
@@ -489,6 +679,14 @@ window.db = {
   fetchSupportMessagesDb,
   insertSupportMessageDb,
   updateSupportMessageDb,
+  fetchFavoritesDb,
+  addFavoriteDb,
+  removeFavoriteDb,
+  fetchReviewsDb,
+  upsertReviewDb,
+  updateReviewDb,
+  deleteReviewDb,
+  recalculateProductRatingDb,
   createPaymentIntentDb,
   confirmPaymentDb,
   reserveProductQuantitiesDb,

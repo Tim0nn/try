@@ -23,6 +23,10 @@
       <a href="login.html" id="nav-login" data-i18n="nav.login">Login</a>
       <a href="register.html" id="nav-register" data-i18n="nav.register">Register</a>
       <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme">theme</button>
+      <a href="wishlist.html" id="nav-wishlist" class="cart cart-link wishlist-link" aria-label="Wishlist">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.2 4.9 13.4a4.8 4.8 0 0 1 6.8-6.8L12 7l.3-.4a4.8 4.8 0 0 1 6.8 6.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="cart-count hidden" id="wishlist-count"></span>
+      </a>
       <a href="cart.html" class="cart cart-link" aria-label="Cart">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h2l1.6 9.4a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L19 8H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="19" r="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
         <span class="cart-count" id="cart-count"></span>
@@ -89,10 +93,23 @@
         <div class="purchase-actions">
           <button class="btn primary" id="btn-add-cart" data-i18n="product.addToCart">Add to Cart</button>
           <button class="btn ghost" id="btn-buy-now" data-i18n="product.buyNow">Buy Now</button>
+          <button class="btn ghost wishlist-action-btn" id="btn-wishlist" type="button" data-i18n="product.addToWishlist">Add to wishlist</button>
           <button class="btn ghost" id="btn-ask-question" data-i18n="product.askQuestion">Ask about product</button>
         </div>
       </aside>
     </div>
+
+    <section id="product-reviews-section" class="product-reviews-section hidden">
+      <div class="section-header">
+        <div>
+          <h2 data-i18n="product.reviewTitle">Customer reviews</h2>
+          <p class="muted" data-i18n="product.reviewSubtitle">See what buyers say about this model.</p>
+        </div>
+      </div>
+      <div id="product-reviews-summary" class="product-reviews-summary"></div>
+      <div id="product-reviews-list" class="product-reviews-list"></div>
+      <div id="product-review-form-wrap" class="product-review-form-wrap"></div>
+    </section>
 
     <section id="related-products-section" class="product-related hidden">
       <div class="section-header">

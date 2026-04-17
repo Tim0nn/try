@@ -1,9 +1,12 @@
 ﻿let products = [];
 let orders = [];
 let supportMessages = [];
+let reviews = [];
 
 const CART_KEY = 'novaCart';
 const CART_SOURCE_KEY = 'dragonCartSource';
+const FAVORITES_KEY = 'dragonFavorites';
+const FAVORITES_SOURCE_KEY = 'dragonFavoritesSource';
 let observer;
 let sentinelEl;
 const THEME_KEY = 'dragonTheme';
@@ -11,7 +14,7 @@ const LANGUAGE_KEY = 'dragonLanguage';
 const COLLECTION_VIEW_KEY = 'dragonCollectionView';
 const PRODUCT_SPECS_KEY = 'dragonProductSpecs';
 const SUPPORT_MESSAGES_KEY = 'dragonSupportMessages';
-const ORDER_STATUS_OPTIONS = ['pending', 'paid', 'shipped', 'delivered'];
+const ORDER_STATUS_OPTIONS = ['pending', 'processing', 'shipped', 'pickup', 'delivered', 'cancelled'];
 const countryPool = ['Japan', 'USA', 'Germany', 'Sweden', 'UK', 'Canada', 'South Korea', 'Netherlands'];
 let currentLanguage = 'en';
 let currentUser = null;
@@ -25,12 +28,15 @@ let cartFocusListenerBound = false;
 let cartRemoteAvailable = true;
 let cartRenderToken = 0;
 let cartRealtimeSubscription = null;
+let favoritesCache = [];
+let favoritesSyncPromise = null;
 
 const I18N = {
   en: {
     title: {
       home: 'Dragon Toys - Modern Store',
       products: 'Products - Dragon Toys',
+      wishlist: 'Wishlist - Dragon Toys',
       cart: 'Cart - Dragon Toys',
       checkout: 'Checkout - Dragon Toys',
       profile: 'Profile - Dragon Toys',
@@ -42,6 +48,7 @@ const I18N = {
     nav: {
       home: 'Home',
       products: 'Products',
+      wishlist: 'Wishlist',
       login: 'Login',
       register: 'Register',
       logout: 'Logout',
@@ -127,6 +134,15 @@ const I18N = {
       each: 'each',
       category: 'Category',
       remove: 'Remove'
+    },
+    wishlist: {
+      title: 'Wishlist',
+      subtitle: 'Save favorites and come back when you are ready.',
+      empty: 'Your wishlist is empty. Tap the heart on products you like.',
+      browse: 'Browse products',
+      added: 'Added to wishlist',
+      removed: 'Removed from wishlist',
+      moveToCart: 'Move to cart'
     },
     checkout: {
       title: 'Checkout',
@@ -219,6 +235,8 @@ const I18N = {
       activeOrderTitle: 'Active order overview',
       activeOrderSubtitle: 'Your latest order with quick delivery details.',
       placedOn: 'Placed on',
+      tracking: 'Delivery progress',
+      timelineTitle: 'Delivery timeline',
       address: 'Address',
       paymentMethod: 'Payment method',
       productsCount: '{count} products',
@@ -231,6 +249,7 @@ const I18N = {
       subtitle: 'Manage products and view orders.',
       tabProducts: 'Products',
       tabOrders: 'Orders',
+      tabReviews: 'Reviews',
       tabQuestions: 'Questions',
       manageProducts: 'Product Management',
       name: 'Name',
@@ -259,6 +278,14 @@ const I18N = {
       saveProduct: 'Save product',
       products: 'Products',
       orders: 'Orders',
+      reviews: 'Reviews',
+      noReviews: 'No reviews yet.',
+      reviewRating: 'Rating',
+      reviewComment: 'Comment',
+      reviewStatus: 'Review status',
+      reviewApprove: 'Approve',
+      reviewReject: 'Reject',
+      reviewDelete: 'Delete review',
       questions: 'Questions',
       noQuestions: 'No messages yet.',
       from: 'From',
@@ -282,10 +309,13 @@ const I18N = {
     product: {
       loading: 'Loading...',
       reviews: 'reviews',
+      ratingBasedOn: 'Based on {count} reviews',
       photosTab: 'Photos',
       modelTab: '3D',
       addToCart: 'Add to Cart',
       buyNow: 'Buy Now',
+      addToWishlist: 'Add to wishlist',
+      removeFromWishlist: 'Remove from wishlist',
       askQuestion: 'Ask about product',
       specsButton: 'Characteristics',
       specsTitle: 'Product characteristics',
@@ -304,7 +334,19 @@ const I18N = {
       control: 'Control',
       features: 'Features',
       country: 'Country',
-      size: 'Size'
+      size: 'Size',
+      reviewTitle: 'Customer reviews',
+      reviewSubtitle: 'See what buyers say about this model.',
+      reviewEmpty: 'There are no approved reviews yet.',
+      reviewFormTitle: 'Leave a review',
+      reviewPurchasedOnly: 'You can leave a review after purchasing this product.',
+      reviewPending: 'Your review is awaiting moderation.',
+      reviewRejected: 'Your previous review was rejected. You can update it and submit again.',
+      reviewSubmitted: 'Review sent for moderation.',
+      reviewRatingLabel: 'Your rating',
+      reviewCommentLabel: 'Your review',
+      reviewCommentPlaceholder: 'Share what you liked, build quality, delivery impression...',
+      reviewSubmit: 'Submit review'
     },
     common: {
       product: 'Product',
@@ -320,16 +362,19 @@ const I18N = {
       status: 'Status'
     },
     orderStatus: {
-      pending: 'Pending',
-      paid: 'Paid',
+      pending: 'Order placed',
+      processing: 'Preparing at warehouse',
       shipped: 'Shipped',
-      delivered: 'Delivered'
+      pickup: 'Waiting at pickup point',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled'
     }
   },
   ru: {
     title: {
       home: 'Dragon Toys - Современный магазин',
       products: 'Товары - Dragon Toys',
+      wishlist: 'Избранное - Dragon Toys',
       cart: 'Корзина - Dragon Toys',
       checkout: 'Оформление - Dragon Toys',
       profile: 'Профиль - Dragon Toys',
@@ -341,6 +386,7 @@ const I18N = {
     nav: {
       home: 'Главная',
       products: 'Товары',
+      wishlist: 'Избранное',
       login: 'Войти',
       register: 'Регистрация',
       logout: 'Выйти',
@@ -426,6 +472,15 @@ const I18N = {
       each: 'за штуку',
       category: 'Категория',
       remove: 'Удалить'
+    },
+    wishlist: {
+      title: 'Избранное',
+      subtitle: 'Сохраняйте понравившиеся товары и возвращайтесь к ним позже.',
+      empty: 'Избранное пока пусто. Нажимайте на сердечко у понравившихся товаров.',
+      browse: 'Перейти к товарам',
+      added: 'Добавлено в избранное',
+      removed: 'Удалено из избранного',
+      moveToCart: 'В корзину'
     },
     checkout: {
       title: 'Оформление заказа',
@@ -518,6 +573,8 @@ const I18N = {
       activeOrderTitle: 'Обзор активного заказа',
       activeOrderSubtitle: 'Ваш последний заказ и быстрые детали доставки.',
       placedOn: 'Оформлен',
+      tracking: 'Движение заказа',
+      timelineTitle: 'Статус доставки',
       address: 'Адрес',
       paymentMethod: 'Способ оплаты',
       productsCount: '{count} товаров',
@@ -530,6 +587,7 @@ const I18N = {
       subtitle: 'Управляйте товарами и просматривайте заказы.',
       tabProducts: 'Товары',
       tabOrders: 'Заказы',
+      tabReviews: 'Отзывы',
       tabQuestions: 'Вопросы',
       manageProducts: 'Управление товарами',
       name: 'Название',
@@ -558,6 +616,14 @@ const I18N = {
       saveProduct: 'Сохранить товар',
       products: 'Товары',
       orders: 'Заказы',
+      reviews: 'Отзывы',
+      noReviews: 'Отзывов пока нет.',
+      reviewRating: 'Оценка',
+      reviewComment: 'Текст',
+      reviewStatus: 'Статус отзыва',
+      reviewApprove: 'Одобрить',
+      reviewReject: 'Отклонить',
+      reviewDelete: 'Удалить отзыв',
       questions: 'Вопросы',
       noQuestions: 'Сообщений пока нет.',
       from: 'От кого',
@@ -581,10 +647,13 @@ const I18N = {
     product: {
       loading: 'Загрузка...',
       reviews: 'отзывов',
+      ratingBasedOn: 'Основано на {count} отзывах',
       photosTab: 'Фото',
       modelTab: '3D',
       addToCart: 'В корзину',
       buyNow: 'Купить сейчас',
+      addToWishlist: 'В избранное',
+      removeFromWishlist: 'Убрать из избранного',
       askQuestion: 'Задать вопрос о товаре',
       specsButton: 'Характеристики',
       specsTitle: 'Характеристики товара',
@@ -603,7 +672,19 @@ const I18N = {
       control: 'Управление',
       features: 'Особенности',
       country: 'Страна',
-      size: 'Размер'
+      size: 'Размер',
+      reviewTitle: 'Отзывы покупателей',
+      reviewSubtitle: 'Посмотрите, что говорят покупатели об этой модели.',
+      reviewEmpty: 'Пока нет одобренных отзывов.',
+      reviewFormTitle: 'Оставить отзыв',
+      reviewPurchasedOnly: 'Оставить отзыв можно после покупки этого товара.',
+      reviewPending: 'Ваш отзыв отправлен и ждёт модерации.',
+      reviewRejected: 'Предыдущий отзыв был отклонён. Можно исправить и отправить заново.',
+      reviewSubmitted: 'Отзыв отправлен на модерацию.',
+      reviewRatingLabel: 'Ваша оценка',
+      reviewCommentLabel: 'Ваш отзыв',
+      reviewCommentPlaceholder: 'Расскажите о качестве, впечатлении от товара и доставке...',
+      reviewSubmit: 'Отправить отзыв'
     },
     common: {
       product: 'Товар',
@@ -619,10 +700,12 @@ const I18N = {
       status: 'Статус'
     },
     orderStatus: {
-      pending: 'Ожидает оплаты',
-      paid: 'Оплачен',
+      pending: 'Заказ оформлен',
+      processing: 'Собирается на складе',
       shipped: 'В пути',
-      delivered: 'Доставлен'
+      pickup: 'Ждёт на пункте выдачи',
+      delivered: 'Доставлен',
+      cancelled: 'Отменён'
     }
   }
 };
@@ -644,6 +727,13 @@ const formatPrice = (value) =>
   new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(
     Number.isFinite(value) ? value : 0
   );
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 const normalizeId = (id) => (id === undefined || id === null ? '' : String(id));
 const idsEqual = (a, b) => normalizeId(a) === normalizeId(b);
 const parseQty = (value) => {
@@ -844,6 +934,151 @@ const syncCartImmediately = (cart = getCart()) => {
   });
 };
 
+const normalizeFavoriteIds = (items = []) =>
+  Array.from(
+    new Set(
+      (Array.isArray(items) ? items : [])
+        .map((id) => normalizeId(id))
+        .filter(Boolean)
+    )
+  );
+
+const readLocalFavorites = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+    return normalizeFavoriteIds(parsed);
+  } catch {
+    return [];
+  }
+};
+
+const writeLocalFavorites = (items = []) => {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(normalizeFavoriteIds(items)));
+};
+
+const getLocalFavoritesSource = () => localStorage.getItem(FAVORITES_SOURCE_KEY) || 'guest';
+
+const setLocalFavoritesSource = (value) => {
+  if (!value) {
+    localStorage.removeItem(FAVORITES_SOURCE_KEY);
+    return;
+  }
+  localStorage.setItem(FAVORITES_SOURCE_KEY, value);
+};
+
+const setFavoritesCache = (items = [], { persistLocal = true, source } = {}) => {
+  favoritesCache = normalizeFavoriteIds(items);
+  if (persistLocal) {
+    writeLocalFavorites(favoritesCache);
+    if (source !== undefined) setLocalFavoritesSource(source);
+  }
+  return [...favoritesCache];
+};
+
+const getFavorites = () => {
+  if (Array.isArray(favoritesCache) && favoritesCache.length) return [...favoritesCache];
+  const local = readLocalFavorites();
+  return setFavoritesCache(local, { persistLocal: false });
+};
+
+const isFavorite = (productId) => getFavorites().some((id) => idsEqual(id, productId));
+
+const updateWishlistCount = () => {
+  const count = getFavorites().length;
+  document.querySelectorAll('#wishlist-count').forEach((el) => {
+    el.textContent = count ? String(count) : '';
+    el.classList.toggle('hidden', !count);
+  });
+};
+
+const refreshFavoriteControls = (productId = null) => {
+  const favorites = getFavorites();
+  const selector = productId
+    ? `.favorite-toggle[data-id="${normalizeId(productId)}"], .wishlist-action-btn[data-id="${normalizeId(productId)}"]`
+    : '.favorite-toggle[data-id], .wishlist-action-btn[data-id]';
+  document.querySelectorAll(selector).forEach((btn) => {
+    const active = favorites.some((id) => idsEqual(id, btn.dataset.id));
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.setAttribute('aria-label', active ? t('product.removeFromWishlist') : t('product.addToWishlist'));
+    btn.setAttribute('title', active ? t('product.removeFromWishlist') : t('product.addToWishlist'));
+    const text = btn.querySelector('[data-favorite-label]');
+    if (text) text.textContent = active ? t('product.removeFromWishlist') : t('product.addToWishlist');
+    const path = btn.querySelector('svg path');
+    if (path) {
+      path.setAttribute('fill', active ? 'currentColor' : 'none');
+    }
+  });
+  updateWishlistCount();
+};
+
+const syncFavoritesFromRemote = async ({ force = false } = {}) => {
+  const user = getCurrentUserState();
+  if (!user || !window.db?.fetchFavoritesDb) {
+    const local = readLocalFavorites();
+    setFavoritesCache(local, { persistLocal: false });
+    updateWishlistCount();
+    return local;
+  }
+  if (!force && favoritesSyncPromise) return favoritesSyncPromise;
+  favoritesSyncPromise = (async () => {
+    const localFavorites = readLocalFavorites();
+    const localSource = getLocalFavoritesSource();
+    const userSource = `user:${user.id}`;
+    try {
+      const remoteFavorites = normalizeFavoriteIds(await window.db.fetchFavoritesDb());
+      const shouldMergeGuest = localSource === 'guest' && localFavorites.length > 0;
+      const merged = shouldMergeGuest ? normalizeFavoriteIds([...remoteFavorites, ...localFavorites]) : remoteFavorites;
+      if (shouldMergeGuest) {
+        const missing = merged.filter((id) => !remoteFavorites.some((remoteId) => idsEqual(remoteId, id)));
+        for (const id of missing) {
+          await window.db.addFavoriteDb(id);
+        }
+      }
+      setFavoritesCache(merged, { source: userSource });
+      updateWishlistCount();
+      return merged;
+    } catch (error) {
+      console.error('Favorites sync failed', error);
+      const fallback = setFavoritesCache(localFavorites, { source: localSource });
+      updateWishlistCount();
+      return fallback;
+    } finally {
+      favoritesSyncPromise = null;
+    }
+  })();
+  return favoritesSyncPromise;
+};
+
+const toggleFavorite = async (productId, { silent = false } = {}) => {
+  const id = normalizeId(productId);
+  if (!id) return false;
+  const user = getCurrentUserState();
+  const nextActive = !isFavorite(id);
+  const nextFavorites = nextActive ? normalizeFavoriteIds([...getFavorites(), id]) : getFavorites().filter((favId) => !idsEqual(favId, id));
+  setFavoritesCache(nextFavorites, { source: user ? `user:${user.id}` : 'guest' });
+  refreshFavoriteControls(id);
+  if (user) {
+    try {
+      if (nextActive) await window.db?.addFavoriteDb?.(id);
+      else await window.db?.removeFavoriteDb?.(id);
+    } catch (error) {
+      console.error('Favorite update failed', error);
+      const rollback = nextActive ? getFavorites().filter((favId) => !idsEqual(favId, id)) : normalizeFavoriteIds([...getFavorites(), id]);
+      setFavoritesCache(rollback, { source: `user:${user.id}` });
+      refreshFavoriteControls(id);
+      throw error;
+    }
+  }
+  if (!silent) {
+    showToast(nextActive ? t('wishlist.added') : t('wishlist.removed'));
+  }
+  if (document.body.dataset.page === 'wishlist') {
+    renderWishlistPage();
+  }
+  return nextActive;
+};
+
 const stopCartRealtime = async () => {
   if (!cartRealtimeSubscription || !window.db?.offCartChangeDb) {
     cartRealtimeSubscription = null;
@@ -1033,6 +1268,7 @@ const initAuth = async () => {
   await getCurrentUser();
   await getUserRole();
   await syncCartFromRemote({ force: true });
+  await syncFavoritesFromRemote({ force: true });
   await startCartRealtime();
   if (!cartFocusListenerBound) {
     cartFocusListenerBound = true;
@@ -1060,13 +1296,16 @@ const initAuth = async () => {
         if (session?.user) {
           await getUserRole();
           await syncCartFromRemote({ force: true });
+          await syncFavoritesFromRemote({ force: true });
           await startCartRealtime();
         } else {
           setCurrentUserRole(null);
           await stopCartRealtime();
           cartHydratedUserId = null;
           setCartCache(readLocalCart(), { persistLocal: false });
+          setFavoritesCache(readLocalFavorites(), { persistLocal: false });
           updateCartCount();
+          updateWishlistCount();
         }
       })().catch((error) => {
         console.error('Auth state change failed', error);
@@ -1091,7 +1330,15 @@ const loadProducts = async () => {
   return [];
 };
 
-const normalizeOrderStatus = (status) => (ORDER_STATUS_OPTIONS.includes(status) ? status : 'pending');
+const normalizeOrderStatus = (status) => {
+  const normalized = String(status || '')
+    .trim()
+    .toLowerCase();
+  if (normalized === 'paid') return 'processing';
+  return ORDER_STATUS_OPTIONS.includes(normalized) ? normalized : 'pending';
+};
+
+const ORDER_TIMELINE_STEPS = ['pending', 'processing', 'shipped', 'pickup', 'delivered'];
 
 const COLOR_SWATCH_MAP = {
   red: '#ef4444',
@@ -1373,6 +1620,7 @@ const updateNavUser = () => {
   const navRegister = document.getElementById('nav-register');
   const navProfile = document.getElementById('nav-profile');
   const navAdmin = document.getElementById('nav-admin');
+  const navWishlist = document.getElementById('nav-wishlist');
   if (navUser) navUser.textContent = user ? user.user_metadata?.full_name || user.email : '';
   if (logoutBtn) {
     logoutBtn.classList.toggle('hidden', !user);
@@ -1393,6 +1641,8 @@ const updateNavUser = () => {
   if (navRegister) navRegister.classList.toggle('hidden', !!user);
   if (navProfile) navProfile.classList.toggle('hidden', !user);
   if (navAdmin) navAdmin.classList.toggle('hidden', !(user && role === 'admin'));
+  if (navWishlist) navWishlist.classList.remove('hidden');
+  updateWishlistCount();
 };
 
 const showToast = (message) => {
@@ -1407,7 +1657,7 @@ const showToast = (message) => {
   setTimeout(() => toast.classList.remove('show'), 1800);
 };
 
-const getCartIconElement = () => document.querySelector('.cart-link:not(#nav-admin):not(#nav-profile)');
+const getCartIconElement = () => document.querySelector('.cart-link[href="cart.html"]');
 
 const getFlyToCartImageSource = (triggerEl, product) => {
   if (triggerEl instanceof HTMLElement) {
@@ -1736,6 +1986,25 @@ const attachCardImageScrub = (imageEl, product) => {
   });
 };
 
+const createFavoriteButtonMarkup = (productId) => {
+  const active = isFavorite(productId);
+  return `
+    <button
+      class="favorite-toggle ${active ? 'active' : ''}"
+      type="button"
+      data-id="${productId}"
+      aria-pressed="${active ? 'true' : 'false'}"
+      aria-label="${active ? t('product.removeFromWishlist') : t('product.addToWishlist')}"
+      title="${active ? t('product.removeFromWishlist') : t('product.addToWishlist')}"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 20.2 4.9 13.4a4.8 4.8 0 0 1 6.8-6.8L12 7l.3-.4a4.8 4.8 0 0 1 6.8 6.8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="sr-only" data-favorite-label>${active ? t('product.removeFromWishlist') : t('product.addToWishlist')}</span>
+    </button>
+  `;
+};
+
 const createCard = (product) => {
   const card = document.createElement('article');
   card.className = 'card';
@@ -1748,6 +2017,7 @@ const createCard = (product) => {
   const safeReviews = Number.isFinite(Number(product.reviews_count)) ? Number(product.reviews_count) : 0;
   card.innerHTML = `
     <div class="card-media">
+      ${createFavoriteButtonMarkup(product.id)}
       <img src="${product.image}" alt="${product.name}">
     </div>
     <h3>${product.name}</h3>
@@ -1770,13 +2040,13 @@ const createCard = (product) => {
   };
 
   card.addEventListener('click', (e) => {
-    if (e.target.closest('.add-to-cart')) return;
+    if (e.target.closest('.add-to-cart, .favorite-toggle')) return;
     openProductPage();
   });
 
   card.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    if (e.target.closest('.add-to-cart')) return;
+    if (e.target.closest('.add-to-cart, .favorite-toggle')) return;
     e.preventDefault();
     openProductPage();
   });
@@ -1797,6 +2067,7 @@ const createCollectionCard = (product) => {
   card.setAttribute('aria-label', product.name);
   card.innerHTML = `
     <div class="collection-card-media">
+      ${createFavoriteButtonMarkup(product.id)}
       ${hasSale ? `<span class="collection-card-badge sale">${t('products.saleBadge')}</span>` : ''}
       ${soldOut ? `<span class="collection-card-badge stock">${t('product.outOfStock')}</span>` : ''}
       <img src="${product.image}" alt="${product.name}">
@@ -1825,13 +2096,13 @@ const createCollectionCard = (product) => {
   };
 
   card.addEventListener('click', (e) => {
-    if (e.target.closest('.add-to-cart')) return;
+    if (e.target.closest('.add-to-cart, .favorite-toggle')) return;
     openProductPage();
   });
 
   card.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    if (e.target.closest('.add-to-cart')) return;
+    if (e.target.closest('.add-to-cart, .favorite-toggle')) return;
     e.preventDefault();
     openProductPage();
   });
@@ -2650,6 +2921,149 @@ const renderCartPage = async () => {
   totalEl.textContent = formatPrice(total);
 };
 
+const loadProductReviews = async (productId, { includeOwn = true } = {}) => {
+  const id = normalizeId(productId);
+  if (!id || !window.db?.fetchReviewsDb) return { approved: [], own: null, all: [] };
+  try {
+    const approved = await window.db.fetchReviewsDb({ product_id: id, status: 'approved' });
+    let own = null;
+    if (includeOwn) {
+      const user = getCurrentUserState();
+      if (user?.id) {
+        const ownRows = await window.db.fetchReviewsDb({ product_id: id, user_id: user.id });
+        own = ownRows[0] || null;
+      }
+    }
+    return { approved, own, all: approved };
+  } catch (error) {
+    console.error('Review load failed', error);
+    return { approved: [], own: null, all: [] };
+  }
+};
+
+const hasPurchasedProduct = async (productId) => {
+  const user = await getCurrentUser();
+  if (!user?.email) return false;
+  try {
+    const userOrders = await loadOrders({ user_email: user.email });
+    return userOrders.some((order) =>
+      Array.isArray(order.items) &&
+      order.items.some((item) => idsEqual(item.id, productId))
+    );
+  } catch (error) {
+    console.error('Purchase check failed', error);
+    return false;
+  }
+};
+
+const renderProductReviewsSection = async (product) => {
+  if (document.body.dataset.page !== 'product') return;
+  const section = document.getElementById('product-reviews-section');
+  const summary = document.getElementById('product-reviews-summary');
+  const list = document.getElementById('product-reviews-list');
+  const formWrap = document.getElementById('product-review-form-wrap');
+  if (!section || !summary || !list || !formWrap || !product) return;
+
+  const user = await getCurrentUser();
+  const [{ approved, own }, canReview] = await Promise.all([loadProductReviews(product.id), hasPurchasedProduct(product.id)]);
+  reviews = approved;
+
+  section.classList.remove('hidden');
+  summary.innerHTML = `
+    <div class="product-reviews-summary-card">
+      <strong>${product.rating ? product.rating.toFixed(1) : '0.0'} ★</strong>
+      <span class="muted">${t('product.ratingBasedOn', { count: product.reviews_count || approved.length || 0 })}</span>
+    </div>
+  `;
+
+  if (!approved.length) {
+    list.innerHTML = `<p class="muted">${t('product.reviewEmpty')}</p>`;
+  } else {
+    list.innerHTML = approved
+      .map(
+        (review) => `
+          <article class="review-card">
+            <div class="review-card-head">
+              <div>
+                <strong>${escapeHtml(review.user_name || review.user_email || 'Customer')}</strong>
+                <p class="muted small">${formatDateTime(review.created_at)}</p>
+              </div>
+              <span class="review-rating-badge">${Number(review.rating || 0).toFixed(1)} ★</span>
+            </div>
+            <p>${escapeHtml(review.comment || '')}</p>
+          </article>
+        `
+      )
+      .join('');
+  }
+
+  if (!user) {
+    formWrap.innerHTML = `<p class="muted">${t('product.reviewPurchasedOnly')}</p>`;
+    return;
+  }
+
+  const statusMessage =
+    own?.status === 'pending'
+      ? `<p class="muted small">${t('product.reviewPending')}</p>`
+      : own?.status === 'rejected'
+      ? `<p class="muted small">${t('product.reviewRejected')}</p>`
+      : '';
+
+  if (!canReview && !own) {
+    formWrap.innerHTML = `<p class="muted">${t('product.reviewPurchasedOnly')}</p>`;
+    return;
+  }
+
+  formWrap.innerHTML = `
+    <form id="product-review-form" class="review-form glass">
+      <div class="section-header compact">
+        <div>
+          <h3>${t('product.reviewFormTitle')}</h3>
+          ${statusMessage}
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="review-rating">${t('product.reviewRatingLabel')}</label>
+        <input id="review-rating" name="rating" type="number" min="1" max="5" step="1" value="${Math.max(1, Number(own?.rating) || 5)}">
+      </div>
+      <div class="form-row">
+        <label for="review-comment">${t('product.reviewCommentLabel')}</label>
+        <textarea id="review-comment" name="comment" rows="4" placeholder="${t('product.reviewCommentPlaceholder')}">${own?.comment || ''}</textarea>
+      </div>
+      <button class="btn primary" type="submit">${t('product.reviewSubmit')}</button>
+      <p id="review-form-message" class="muted small"></p>
+    </form>
+  `;
+
+  const form = document.getElementById('product-review-form');
+  const formMessage = document.getElementById('review-form-message');
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rating = Math.min(5, Math.max(1, Number(form.querySelector('#review-rating')?.value || 5)));
+    const comment = String(form.querySelector('#review-comment')?.value || '').trim();
+    if (!comment) {
+      if (formMessage) formMessage.textContent = t('product.reviewCommentPlaceholder');
+      return;
+    }
+    try {
+      const data = await window.db?.upsertReviewDb?.({
+        product_id: product.id,
+        rating,
+        comment,
+        status: 'pending'
+      });
+      console.log('DATA:', data);
+      console.log('ERROR:', null);
+      if (formMessage) formMessage.textContent = t('product.reviewSubmitted');
+      await renderProductReviewsSection(product);
+    } catch (error) {
+      console.log('DATA:', null);
+      console.log('ERROR:', error);
+      if (formMessage) formMessage.textContent = error?.message || 'Review error';
+    }
+  });
+};
+
 const renderProductPage = async () => {
   if (document.body.dataset.page !== 'product') return;
   const params = new URLSearchParams(window.location.search);
@@ -2670,6 +3084,7 @@ const renderProductPage = async () => {
       fillProductPage(p);
       renderProductSpecsSection(p);
       renderRelatedProducts(p.id);
+      await renderProductReviewsSection(p);
       if (products.length <= 1) {
         setTimeout(async () => {
           try {
@@ -2687,6 +3102,7 @@ const renderProductPage = async () => {
       fillProductPage(fallback);
       renderRelatedProducts(fallback.id);
       renderProductSpecsSection(fallback);
+      await renderProductReviewsSection(fallback);
       return;
     }
     throw new Error('Not found');
@@ -2714,6 +3130,7 @@ const fillProductPage = (p) => {
   const colorRow = document.getElementById('color-row');
   const specGrid = document.getElementById('spec-grid');
   const specsBtn = document.getElementById('specs-scroll-btn');
+  const wishlistBtn = document.getElementById('btn-wishlist');
   if (!p) return;
   const colors = parseProductColors(p.color);
   nameEl.textContent = p.name;
@@ -2727,6 +3144,19 @@ const fillProductPage = (p) => {
   reviewsEl.textContent = `${p.reviews_count || 0} ${t('product.reviews')}`;
   if (imageTab) imageTab.textContent = t('product.photosTab');
   if (modelTab) modelTab.textContent = t('product.modelTab');
+  if (wishlistBtn) {
+    const active = isFavorite(p.id);
+    wishlistBtn.dataset.id = p.id;
+    wishlistBtn.classList.toggle('active', active);
+    wishlistBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    wishlistBtn.setAttribute('aria-label', active ? t('product.removeFromWishlist') : t('product.addToWishlist'));
+    wishlistBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 20.2 4.9 13.4a4.8 4.8 0 0 1 6.8-6.8L12 7l.3-.4a4.8 4.8 0 0 1 6.8 6.8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span data-favorite-label>${active ? t('product.removeFromWishlist') : t('product.addToWishlist')}</span>
+    `;
+  }
 
   const gallery = p.gallery_images && p.gallery_images.length ? p.gallery_images : [p.image];
   let current = gallery[0];
@@ -2819,14 +3249,24 @@ const fillProductPage = (p) => {
   if (askBtn) askBtn.textContent = t('product.askQuestion');
   if (specsBtn) specsBtn.textContent = t('product.specsButton');
 
-  addBtn?.addEventListener('click', () => addToCart(p.id, { triggerEl: addBtn }));
-  buyBtn?.addEventListener('click', () => {
+  if (addBtn) addBtn.onclick = () => addToCart(p.id, { triggerEl: addBtn });
+  if (buyBtn) buyBtn.onclick = () => {
     addToCart(p.id, { triggerEl: buyBtn });
     window.location.href = 'checkout.html';
-  });
-  askBtn?.addEventListener('click', () => {
+  };
+  if (askBtn) askBtn.onclick = () => {
     openSupportModal({ source: 'product_question', product: p });
-  });
+  };
+  if (wishlistBtn) {
+    wishlistBtn.onclick = async () => {
+      try {
+        await toggleFavorite(p.id);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+  }
+  refreshFavoriteControls(p.id);
 };
 
 const clampCartQtyByStock = (id, qty) => {
@@ -2878,6 +3318,15 @@ const wireCartEvents = () => {
   });
 
   document.body.addEventListener('click', (e) => {
+    const favoriteBtn = e.target.closest('.favorite-toggle');
+    if (favoriteBtn) {
+      e.preventDefault();
+      toggleFavorite(favoriteBtn.dataset.id).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+
     const addBtn = e.target.closest('.add-to-cart');
     if (addBtn) {
       const id = addBtn.dataset.id;
@@ -3137,7 +3586,7 @@ const renderCheckout = async () => {
 
         const paid = paymentResult.paid === true;
         const paymentStatus = paid ? 'paid' : 'pending';
-        const orderStatus = paid ? 'paid' : 'pending';
+        const orderStatus = paid ? 'processing' : 'pending';
         if (window.db?.updateOrderPaymentDb) {
           const paymentUpdateData = await window.db.updateOrderPaymentDb(createdOrder.id, {
             payment_method: selectedMethod,
@@ -3267,6 +3716,27 @@ const isAdmin = () => {
   return getCurrentUserRoleState() === 'admin';
 };
 
+const isActiveOrderStatus = (status) => ['pending', 'processing', 'shipped', 'pickup'].includes(normalizeOrderStatus(status));
+
+const renderOrderTimeline = (status) => {
+  const normalized = normalizeOrderStatus(status);
+  const currentIndex = ORDER_TIMELINE_STEPS.indexOf(normalized);
+  return `
+    <div class="order-timeline" aria-label="${orderStatusLabel(normalized)}">
+      ${ORDER_TIMELINE_STEPS.map((step, index) => {
+        const done = currentIndex >= index;
+        const current = normalized === step;
+        return `
+          <div class="timeline-step ${done ? 'done' : ''} ${current ? 'current' : ''}">
+            <span class="timeline-dot"></span>
+            <span class="timeline-label">${orderStatusLabel(step)}</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+};
+
 const renderProfile = async () => {
   if (document.body.dataset.page !== 'profile') return;
 
@@ -3285,10 +3755,8 @@ const renderProfile = async () => {
 
   const userOrders = await loadOrders({ user_email: user.email });
   const latestOrder = userOrders[0] || null;
-  const activeOrdersCount = userOrders.filter((order) => ['pending', 'paid', 'shipped'].includes(normalizeOrderStatus(order.status))).length;
-  const activeOrderId = (
-    userOrders.find((order) => ['pending', 'paid', 'shipped'].includes(normalizeOrderStatus(order.status))) || latestOrder
-  )?.id;
+  const activeOrdersCount = userOrders.filter((order) => isActiveOrderStatus(order.status)).length;
+  const activeOrderId = (userOrders.find((order) => isActiveOrderStatus(order.status)) || latestOrder)?.id;
   const lastOrderLabel = latestOrder ? formatDateTime(latestOrder.created_at) : '—';
   const displayName = user.user_metadata?.full_name || user.email;
   const roleBadge = role === 'admin' ? `<span class="status-pill">${t('profile.role')}: ${displayRole}</span>` : '';
@@ -3384,6 +3852,10 @@ const renderProfile = async () => {
             <strong>${active.payment_method || '—'}</strong>
           </div>
         </div>
+        <div class="profile-order-timeline-wrap">
+          <span class="muted small">${t('profile.timelineTitle')}</span>
+          ${renderOrderTimeline(active.status)}
+        </div>
         ${active.address ? `<div class="profile-order-extra"><span class="muted small">${t('profile.address')}</span><p>${active.address}</p></div>` : ''}
         ${renderOrderItems(active.items)}
       </div>
@@ -3423,6 +3895,9 @@ const renderProfile = async () => {
         <button class="btn ghost small-btn history-toggle-btn" type="button" aria-expanded="false" aria-controls="${detailsId}">${t('profile.showDetails')}</button>
       </div>
       <div id="${detailsId}" class="history-details hidden">
+        <div class="profile-order-timeline-wrap compact">
+          ${renderOrderTimeline(order.status)}
+        </div>
         ${order.address ? `<p class="muted small history-address">${t('profile.address')}: ${order.address}</p>` : ''}
         ${renderOrderItems(order.items)}
       </div>
@@ -3540,6 +4015,52 @@ const renderAdminQuestions = () => {
   });
 };
 
+const renderAdminReviews = () => {
+  if (document.body.dataset.page !== 'admin') return;
+  const wrap = document.getElementById('admin-reviews');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!reviews.length) {
+    wrap.innerHTML = `<p class="muted">${t('admin.noReviews')}</p>`;
+    return;
+  }
+  reviews.forEach((review) => {
+    const product = products.find((item) => idsEqual(item.id, review.product_id));
+    const card = document.createElement('article');
+    card.className = 'admin-review-card';
+    card.innerHTML = `
+      <div class="admin-review-head">
+        <div>
+          <strong>${escapeHtml(review.user_name || review.user_email || 'Customer')}</strong>
+          <p class="muted small">${escapeHtml(product?.name || `${t('common.product')} #${review.product_id}`)}</p>
+          <p class="muted small">${formatDateTime(review.created_at)}</p>
+        </div>
+        <div class="admin-review-meta">
+          <span class="review-rating-badge">${Number(review.rating || 0).toFixed(1)} ★</span>
+          <span class="status-pill">${review.status}</span>
+        </div>
+      </div>
+      <p class="admin-review-comment">${escapeHtml(review.comment || '—')}</p>
+      <div class="admin-review-actions">
+        <button class="btn ghost small-btn approve-review" type="button" data-id="${review.id}" data-product-id="${review.product_id}">${t('admin.reviewApprove')}</button>
+        <button class="btn ghost small-btn reject-review" type="button" data-id="${review.id}" data-product-id="${review.product_id}">${t('admin.reviewReject')}</button>
+        <button class="btn ghost small-btn delete-review" type="button" data-id="${review.id}" data-product-id="${review.product_id}">${t('admin.reviewDelete')}</button>
+      </div>
+    `;
+    wrap.appendChild(card);
+  });
+};
+
+const loadAllReviews = async () => {
+  if (!window.db?.fetchReviewsDb) return [];
+  try {
+    return await window.db.fetchReviewsDb();
+  } catch (error) {
+    console.error('Failed to load reviews', error);
+    return [];
+  }
+};
+
 const handleAdminPage = async () => {
   if (document.body.dataset.page !== 'admin') return;
   const user = await getCurrentUser();
@@ -3573,6 +4094,7 @@ const handleAdminPage = async () => {
   const list = document.getElementById('admin-products');
   const ordersWrap = document.getElementById('admin-orders');
   const questionsWrap = document.getElementById('admin-questions');
+  const reviewsWrap = document.getElementById('admin-reviews');
 
   const escapeAttr = (value) =>
     String(value)
@@ -3950,15 +4472,52 @@ const handleAdminPage = async () => {
     })();
   });
 
+  reviewsWrap?.addEventListener('click', (e) => {
+    const approveBtn = e.target.closest('.approve-review');
+    const rejectBtn = e.target.closest('.reject-review');
+    const deleteBtn = e.target.closest('.delete-review');
+    if (!approveBtn && !rejectBtn && !deleteBtn) return;
+    const reviewId = normalizeId((approveBtn || rejectBtn || deleteBtn)?.dataset.id);
+    const productId = normalizeId((approveBtn || rejectBtn || deleteBtn)?.dataset.productId);
+    (async () => {
+      try {
+        if (approveBtn && window.db?.updateReviewDb) {
+          await window.db.updateReviewDb(reviewId, { status: 'approved' });
+        }
+        if (rejectBtn && window.db?.updateReviewDb) {
+          await window.db.updateReviewDb(reviewId, { status: 'rejected' });
+        }
+        if (deleteBtn && window.db?.deleteReviewDb) {
+          await window.db.deleteReviewDb(reviewId);
+        }
+        if (window.db?.recalculateProductRatingDb && productId) {
+          const updatedProduct = await window.db.recalculateProductRatingDb(productId);
+          if (updatedProduct) {
+            const index = products.findIndex((item) => idsEqual(item.id, updatedProduct.id));
+            if (index >= 0) products[index] = updatedProduct;
+          }
+        }
+        reviews = await loadAllReviews();
+        renderAdminReviews();
+      } catch (error) {
+        console.log('DATA:', null);
+        console.log('ERROR:', error);
+        console.error(error);
+      }
+    })();
+  });
+
   const tabs = Array.from(document.querySelectorAll('[data-admin-tab]'));
   const productsPanel = document.getElementById('admin-tab-products');
   const ordersPanel = document.getElementById('admin-tab-orders');
   const questionsPanel = document.getElementById('admin-tab-questions');
+  const reviewsPanel = document.getElementById('admin-tab-reviews');
   const setAdminTab = (tab) => {
     tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.adminTab === tab));
     productsPanel?.classList.toggle('hidden', tab !== 'products');
     ordersPanel?.classList.toggle('hidden', tab !== 'orders');
     questionsPanel?.classList.toggle('hidden', tab !== 'questions');
+    reviewsPanel?.classList.toggle('hidden', tab !== 'reviews');
   };
   tabs.forEach((btn) => btn.addEventListener('click', () => setAdminTab(btn.dataset.adminTab)));
   setAdminTab('products');
@@ -3968,6 +4527,8 @@ const handleAdminPage = async () => {
     renderAdminOrders();
     supportMessages = await loadSupportMessages();
     renderAdminQuestions();
+    reviews = await loadAllReviews();
+    renderAdminReviews();
   })();
   renderAdminProducts();
 };
@@ -3988,6 +4549,32 @@ const renderRecommended = () => {
     const card = createCard(p);
     grid.appendChild(card);
   });
+};
+
+const renderWishlistPage = async () => {
+  if (document.body.dataset.page !== 'wishlist') return;
+  const grid = document.getElementById('wishlist-grid');
+  const empty = document.getElementById('wishlist-empty');
+  const countEl = document.getElementById('wishlist-count-text');
+  if (!grid || !empty) return;
+  await syncFavoritesFromRemote();
+  const favoriteIds = getFavorites();
+  if (countEl) countEl.textContent = `${favoriteIds.length}`;
+  if (!favoriteIds.length) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  await ensureProducts(favoriteIds);
+  const favoriteProducts = favoriteIds
+    .map((id) => products.find((product) => idsEqual(product.id, id)))
+    .filter(Boolean);
+  grid.innerHTML = '';
+  favoriteProducts.forEach((product) => {
+    grid.appendChild(createCollectionCard(product));
+  });
+  refreshFavoriteControls();
 };
 
 const applyTheme = (theme) => {
@@ -4108,6 +4695,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     wireProductsPage();
   }
 
+  if (page === 'wishlist') {
+    await renderWishlistPage();
+  }
+
   if (page === 'cart') {
     await renderCartPage();
     setTimeout(async () => {
@@ -4142,6 +4733,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireBackButtons();
   wireSupportLinks();
   updateCartCount();
+  updateWishlistCount();
+  refreshFavoriteControls();
   handleRegister();
   handleLogin();
 });
