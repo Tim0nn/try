@@ -11,12 +11,15 @@ let observer;
 let sentinelEl;
 const THEME_KEY = 'dragonTheme';
 const LANGUAGE_KEY = 'dragonLanguage';
+const CURRENCY_KEY = 'dragonCurrency';
 const COLLECTION_VIEW_KEY = 'dragonCollectionView';
 const PRODUCT_SPECS_KEY = 'dragonProductSpecs';
 const SUPPORT_MESSAGES_KEY = 'dragonSupportMessages';
 const ORDER_STATUS_OPTIONS = ['pending', 'processing', 'shipped', 'pickup', 'delivered', 'cancelled'];
 const countryPool = ['Japan', 'USA', 'Germany', 'Sweden', 'UK', 'Canada', 'South Korea', 'Netherlands'];
 let currentLanguage = 'en';
+let currentCurrency = 'USD';
+let currentPricingRegion = 'america';
 let currentUser = null;
 let currentUserRole = null;
 let authSubscription = null;
@@ -54,6 +57,7 @@ const I18N = {
       logout: 'Logout',
       back: 'Back',
       switchLanguage: 'Switch language',
+      switchCurrency: 'Switch currency',
       switchToLight: 'Switch to light theme',
       switchToDark: 'Switch to dark theme'
     },
@@ -256,6 +260,17 @@ const I18N = {
       price: 'Price',
       imageUrl: 'Image URL',
       galleryImages: 'Gallery images (comma URLs)',
+      basePrice: 'Base price',
+      baseRegion: 'Base region',
+      regionalPricing: 'Regional pricing',
+      regionalPricingHint: 'Use one base price and adjust regional prices when needed.',
+      autoFillRegional: 'Auto-fill regional prices',
+      pricingCurrency: 'Currency',
+      regionAmerica: 'America',
+      regionEurope: 'Europe',
+      regionEurasia: 'Eurasia',
+      regionAsia: 'Asia',
+      regionOceania: 'Oceania',
       modelUrl: '3D model URL (.glb)',
       show3d: 'Show 3D model on product page',
       imageDropTitle: 'Drop image here',
@@ -267,6 +282,14 @@ const I18N = {
       size: 'Size',
       category: 'Category',
       quantity: 'Quantity',
+      ageRating: 'Age rating',
+      ageRatingPlaceholder: 'e.g., 3+',
+      materials: 'Materials',
+      materialsPlaceholder: 'ABS plastic, silicone',
+      certifications: 'Certificates',
+      certificationsPlaceholder: 'CE, ASTM F963',
+      safetyWarnings: 'Safety warnings',
+      safetyWarningsPlaceholder: 'Contains small parts. Adult supervision recommended.',
       color: 'Color',
       colorPlaceholder: 'Red, Blue, Black',
       tags: 'Tags (comma separated)',
@@ -329,6 +352,12 @@ const I18N = {
       onlyLeft: 'Only {count} left',
       outOfStock: 'Out of stock',
       color: 'Color',
+      ageRating: 'Age',
+      materials: 'Materials',
+      certifications: 'Certificates',
+      safetyWarnings: 'Warnings',
+      safetyTitle: 'Safety & care',
+      safetySubtitle: 'Age guidance, materials and important usage notes.',
       type: 'Type',
       transport: 'Transport',
       control: 'Control',
@@ -392,6 +421,7 @@ const I18N = {
       logout: 'Выйти',
       back: 'Назад',
       switchLanguage: 'Сменить язык',
+      switchCurrency: 'Сменить валюту',
       switchToLight: 'Переключить на светлую тему',
       switchToDark: 'Переключить на тёмную тему'
     },
@@ -594,6 +624,17 @@ const I18N = {
       price: 'Цена',
       imageUrl: 'URL изображения',
       galleryImages: 'Галерея (URL через запятую)',
+      basePrice: 'Базовая цена',
+      baseRegion: 'Базовый регион',
+      regionalPricing: 'Региональные цены',
+      regionalPricingHint: 'Используйте одну базовую цену и при необходимости скорректируйте цены по регионам.',
+      autoFillRegional: 'Автозаполнить региональные цены',
+      pricingCurrency: 'Валюта',
+      regionAmerica: 'Америка',
+      regionEurope: 'Европа',
+      regionEurasia: 'Евразия',
+      regionAsia: 'Азия',
+      regionOceania: 'Океания',
       modelUrl: 'URL 3D модели (.glb)',
       show3d: 'Показывать 3D модель на странице товара',
       imageDropTitle: 'Перетащите изображение сюда',
@@ -605,6 +646,14 @@ const I18N = {
       size: 'Размер',
       category: 'Категория',
       quantity: 'Количество',
+      ageRating: 'Возраст',
+      ageRatingPlaceholder: 'например, 3+',
+      materials: 'Материалы',
+      materialsPlaceholder: 'ABS-пластик, силикон',
+      certifications: 'Сертификаты',
+      certificationsPlaceholder: 'CE, ASTM F963',
+      safetyWarnings: 'Предупреждения',
+      safetyWarningsPlaceholder: 'Содержит мелкие детали. Рекомендуется присмотр взрослых.',
       color: 'Цвет',
       colorPlaceholder: 'Красный, Синий, Черный',
       tags: 'Теги (через запятую)',
@@ -667,6 +716,12 @@ const I18N = {
       onlyLeft: 'Осталось {count} шт.',
       outOfStock: 'Нет в наличии',
       color: 'Цвет',
+      ageRating: 'Возраст',
+      materials: 'Материалы',
+      certifications: 'Сертификаты',
+      safetyWarnings: 'Предупреждения',
+      safetyTitle: 'Безопасность и уход',
+      safetySubtitle: 'Возрастные рекомендации, материалы и важные примечания по использованию.',
       type: 'Тип',
       transport: 'Транспорт',
       control: 'Управление',
@@ -723,10 +778,181 @@ const t = (key, vars = {}) => {
   return translateTemplate(value, vars);
 };
 
-const formatPrice = (value) =>
-  new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(
-    Number.isFinite(value) ? value : 0
-  );
+const CURRENCY_CONFIG = {
+  USD: { locale: 'en-US', minimumFractionDigits: 0, maximumFractionDigits: 2, usdRate: 1 },
+  EUR: { locale: 'de-DE', minimumFractionDigits: 0, maximumFractionDigits: 2, usdRate: 1.08 },
+  GBP: { locale: 'en-GB', minimumFractionDigits: 0, maximumFractionDigits: 2, usdRate: 1.27 },
+  RUB: { locale: 'ru-RU', minimumFractionDigits: 0, maximumFractionDigits: 0, usdRate: 0.011 },
+  CNY: { locale: 'zh-CN', minimumFractionDigits: 0, maximumFractionDigits: 2, usdRate: 0.138 },
+  JPY: { locale: 'ja-JP', minimumFractionDigits: 0, maximumFractionDigits: 0, usdRate: 0.0066 },
+  AUD: { locale: 'en-AU', minimumFractionDigits: 0, maximumFractionDigits: 2, usdRate: 0.64 }
+};
+
+const CURRENCY_ORDER = ['USD', 'EUR', 'GBP', 'RUB', 'CNY', 'JPY', 'AUD'];
+
+const REGION_PRICING_CONFIG = {
+  america: { currency: 'USD', affordability: 1, nameKey: 'admin.regionAmerica' },
+  europe: { currency: 'EUR', affordability: 0.96, nameKey: 'admin.regionEurope' },
+  eurasia: { currency: 'RUB', affordability: 0.78, nameKey: 'admin.regionEurasia' },
+  asia: { currency: 'CNY', affordability: 0.84, nameKey: 'admin.regionAsia' },
+  oceania: { currency: 'AUD', affordability: 1.03, nameKey: 'admin.regionOceania' }
+};
+
+const REGION_ORDER = ['america', 'europe', 'eurasia', 'asia', 'oceania'];
+
+const getBrowserLocale = () => {
+  const locale = Array.isArray(navigator.languages) && navigator.languages.length ? navigator.languages[0] : navigator.language;
+  return String(locale || 'en-US').trim() || 'en-US';
+};
+
+const detectLanguageFromLocale = (locale = getBrowserLocale()) => (String(locale).toLowerCase().startsWith('ru') ? 'ru' : 'en');
+
+const detectPricingRegionFromLocale = (locale = getBrowserLocale()) => {
+  const normalized = String(locale || '').trim();
+  const [, regionRaw = 'US'] = normalized.split(/[-_]/);
+  const region = regionRaw.toUpperCase();
+  if (['RU', 'BY', 'KZ', 'KG', 'AM', 'AZ', 'TJ', 'TM', 'UZ', 'MD'].includes(region)) return 'eurasia';
+  if (['DE', 'FR', 'IT', 'ES', 'PT', 'NL', 'BE', 'AT', 'IE', 'FI', 'GR', 'SK', 'SI', 'LV', 'LT', 'EE', 'LU', 'PL', 'CZ', 'SE', 'NO', 'DK', 'CH', 'RO', 'BG', 'HR', 'HU', 'GB'].includes(region)) return 'europe';
+  if (['CN', 'JP', 'KR', 'IN', 'SG', 'HK', 'TW', 'TH', 'MY', 'VN', 'ID', 'PH'].includes(region)) return 'asia';
+  if (['AU', 'NZ'].includes(region)) return 'oceania';
+  if (['US', 'CA', 'MX', 'BR', 'AR', 'CL', 'CO', 'PE'].includes(region)) return 'america';
+  return 'america';
+};
+
+const detectCurrencyFromLocale = (locale = getBrowserLocale()) => {
+  const region = detectPricingRegionFromLocale(locale);
+  return REGION_PRICING_CONFIG[region]?.currency || 'USD';
+};
+
+const convertMoney = (value, fromCurrency = 'RUB', toCurrency = currentCurrency) => {
+  const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+  const sourceCode = CURRENCY_CONFIG[fromCurrency] ? fromCurrency : 'USD';
+  const targetCode = CURRENCY_CONFIG[toCurrency] ? toCurrency : 'USD';
+  const sourceUsdRate = CURRENCY_CONFIG[sourceCode].usdRate || 1;
+  const targetUsdRate = CURRENCY_CONFIG[targetCode].usdRate || 1;
+  const usdValue = safeValue * sourceUsdRate;
+  return usdValue / targetUsdRate;
+};
+
+const formatMoneyValue = (value, currency = currentCurrency) => {
+  const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+  const code = CURRENCY_CONFIG[currency] ? currency : 'USD';
+  const config = CURRENCY_CONFIG[code];
+  return new Intl.NumberFormat(config.locale, {
+    style: 'currency',
+    currency: code,
+    minimumFractionDigits: config.minimumFractionDigits,
+    maximumFractionDigits: config.maximumFractionDigits
+  }).format(safeValue);
+};
+
+const formatPrice = (value, currency = currentCurrency, sourceCurrency = 'RUB') => formatMoneyValue(convertMoney(value, sourceCurrency, currency), currency);
+
+const parseTextList = (value) =>
+  (Array.isArray(value) ? value : String(value || '').split(/[\r\n,;]+/))
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+
+const normalizePricingRegion = (value) => {
+  const raw = String(value || '').trim().toLowerCase();
+  return REGION_PRICING_CONFIG[raw] ? raw : 'eurasia';
+};
+
+const parseRegionalPrices = (value) => {
+  if (!value) return {};
+  const source =
+    typeof value === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return {};
+          }
+        })()
+      : value;
+  const next = {};
+  REGION_ORDER.forEach((region) => {
+    const n = Number(source?.[region]);
+    if (Number.isFinite(n) && n > 0) next[region] = n;
+  });
+  return next;
+};
+
+const convertRegionalBasePrice = (amount, fromRegion, toRegion) => {
+  const safeAmount = Number(amount);
+  if (!Number.isFinite(safeAmount) || safeAmount <= 0) return 0;
+  const sourceRegion = REGION_PRICING_CONFIG[normalizePricingRegion(fromRegion)];
+  const targetRegion = REGION_PRICING_CONFIG[normalizePricingRegion(toRegion)];
+  const sourceUsdRate = CURRENCY_CONFIG[sourceRegion.currency]?.usdRate || 1;
+  const targetUsdRate = CURRENCY_CONFIG[targetRegion.currency]?.usdRate || 1;
+  const normalizedUsd = (safeAmount * sourceUsdRate) / (sourceRegion.affordability || 1);
+  const targetAmount = (normalizedUsd * (targetRegion.affordability || 1)) / targetUsdRate;
+  return Math.max(0, Number(targetAmount.toFixed(targetRegion.currency === 'RUB' || targetRegion.currency === 'JPY' ? 0 : 2)));
+};
+
+const getMarketPriceInfo = (product, region = currentPricingRegion) => {
+  const safeRegion = normalizePricingRegion(region);
+  const regionalPrices = parseRegionalPrices(product?.regional_prices);
+  const directPrice = Number(regionalPrices[safeRegion]);
+  if (Number.isFinite(directPrice) && directPrice > 0) {
+    return {
+      amount: directPrice,
+      currency: REGION_PRICING_CONFIG[safeRegion].currency,
+      region: safeRegion,
+      isRegional: true
+    };
+  }
+  const baseRegion = normalizePricingRegion(product?.base_pricing_region || 'eurasia');
+  const baseAmount = Number(product?.price) || 0;
+  const amount = safeRegion === baseRegion ? baseAmount : convertRegionalBasePrice(baseAmount, baseRegion, safeRegion);
+  return {
+    amount,
+    currency: REGION_PRICING_CONFIG[safeRegion].currency,
+    region: safeRegion,
+    isRegional: false
+  };
+};
+
+const getDisplayPriceInfo = (product, { region = currentPricingRegion, displayCurrency = currentCurrency } = {}) => {
+  const market = getMarketPriceInfo(product, region);
+  const displayAmount = convertMoney(market.amount, market.currency, displayCurrency);
+  return {
+    ...market,
+    displayAmount,
+    displayCurrency
+  };
+};
+
+const formatProductPrice = (product, options = {}) => {
+  const pricing = getDisplayPriceInfo(product, options);
+  return formatMoneyValue(pricing.displayAmount, pricing.displayCurrency);
+};
+
+const formatStoredMoney = (amount, currency = currentCurrency) => formatMoneyValue(Number(amount) || 0, CURRENCY_CONFIG[currency] ? currency : currentCurrency);
+
+const resolveCartItemPricing = (item, product = null) => {
+  if (product) {
+    const pricing = getDisplayPriceInfo(product);
+    return {
+      price: pricing.displayAmount,
+      price_currency: pricing.displayCurrency,
+      pricing_region: pricing.region,
+      regional_prices: parseRegionalPrices(product.regional_prices),
+      base_pricing_region: normalizePricingRegion(product.base_pricing_region || 'eurasia')
+    };
+  }
+  const sourceCurrency = CURRENCY_CONFIG[String(item?.price_currency || '').toUpperCase()]
+    ? String(item.price_currency).toUpperCase()
+    : currentCurrency;
+  const displayAmount = sourceCurrency === currentCurrency ? Number(item?.price) || 0 : convertMoney(Number(item?.price) || 0, sourceCurrency, currentCurrency);
+  return {
+    price: displayAmount,
+    price_currency: currentCurrency,
+    pricing_region: normalizePricingRegion(item?.pricing_region || currentPricingRegion),
+    regional_prices: parseRegionalPrices(item?.regional_prices),
+    base_pricing_region: normalizePricingRegion(item?.base_pricing_region || 'eurasia')
+  };
+};
 const escapeHtml = (value) =>
   String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -734,6 +960,21 @@ const escapeHtml = (value) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+const safeUrl = (value, { allowDataImage = true, allowBlob = true } = {}) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (allowDataImage && /^data:image\//i.test(raw)) return raw;
+  if (allowBlob && /^blob:/i.test(raw)) return raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^(\/|\.\/|\.\.\/)/.test(raw)) return raw;
+  return '';
+};
+const renderTextParagraphs = (...parts) =>
+  parts
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .map((part) => `<p>${escapeHtml(part)}</p>`)
+    .join('');
 const normalizeId = (id) => (id === undefined || id === null ? '' : String(id));
 const idsEqual = (a, b) => normalizeId(a) === normalizeId(b);
 const parseQty = (value) => {
@@ -763,6 +1004,8 @@ const normalizeCartItem = (item) => ({
   id: normalizeId(item.id),
   name: item.name || t('common.product'),
   price: Number(item.price) || 0,
+  price_currency: CURRENCY_CONFIG[String(item.price_currency || '').toUpperCase()] ? String(item.price_currency).toUpperCase() : currentCurrency,
+  pricing_region: normalizePricingRegion(item.pricing_region || currentPricingRegion),
   quantity: Math.max(1, parseQty(item.quantity ?? item.qty ?? 1)),
   image_url: item.image_url || item.image || '',
   category: item.category || t('common.general'),
@@ -770,6 +1013,8 @@ const normalizeCartItem = (item) => ({
   country: item.country || '',
   size: item.size || '',
   tags: Array.isArray(item.tags) ? item.tags : [],
+  regional_prices: parseRegionalPrices(item.regional_prices),
+  base_pricing_region: normalizePricingRegion(item.base_pricing_region || 'eurasia'),
   stock_quantity: parseQty(item.stock_quantity ?? item.product_quantity ?? item.quantity_available ?? item.quantity ?? item.qty ?? 0)
 });
 
@@ -1395,6 +1640,27 @@ const parseProductColors = (value) => {
     .filter(Boolean);
 };
 
+const normalizeSafetyList = (value) => parseTextList(value);
+
+const buildSafetyBadgeMarkup = (product) => {
+  const ageRating = String(product?.age_rating || '').trim();
+  if (!ageRating) return '';
+  return `<span class="product-age-badge">${escapeHtml(ageRating)}</span>`;
+};
+
+const buildSafetyEntries = (product) => {
+  const ageRating = String(product?.age_rating || '').trim();
+  const materials = normalizeSafetyList(product?.materials);
+  const certifications = normalizeSafetyList(product?.certifications);
+  const safetyWarnings = String(product?.safety_warnings || '').trim();
+  return [
+    ageRating ? { label: t('product.ageRating'), value: ageRating } : null,
+    materials.length ? { label: t('product.materials'), value: materials.join(', ') } : null,
+    certifications.length ? { label: t('product.certifications'), value: certifications.join(', ') } : null,
+    safetyWarnings ? { label: t('product.safetyWarnings'), value: safetyWarnings } : null
+  ].filter(Boolean);
+};
+
 const parseGalleryInput = (value) => {
   if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
   const raw = String(value || '').trim();
@@ -1549,8 +1815,9 @@ const updateCartCount = () => {
 };
 
 const getStoredLanguage = () => {
-  const saved = localStorage.getItem(LANGUAGE_KEY) || 'en';
-  return saved === 'ru' ? 'ru' : 'en';
+  const saved = String(localStorage.getItem(LANGUAGE_KEY) || '').trim().toLowerCase();
+  if (saved === 'ru' || saved === 'en') return saved;
+  return detectLanguageFromLocale();
 };
 
 const updateLanguageToggle = () => {
@@ -1562,6 +1829,98 @@ const updateLanguageToggle = () => {
     <span class="${currentLanguage === 'ru' ? 'active' : ''}">RU</span>
   `;
   toggle.setAttribute('aria-label', t('nav.switchLanguage'));
+};
+
+const getStoredCurrency = () => {
+  const saved = String(localStorage.getItem(CURRENCY_KEY) || '').trim().toUpperCase();
+  if (CURRENCY_CONFIG[saved]) return saved;
+  return detectCurrencyFromLocale();
+};
+
+const createCurrencySelectMarkup = () => `
+  <button class="select-toggle" type="button" aria-expanded="false" aria-label="${escapeHtml(t('nav.switchCurrency'))}">
+    ${escapeHtml(currentCurrency)} <span class="select-arrow">▼</span>
+  </button>
+  <ul class="select-options" role="listbox">
+    ${CURRENCY_ORDER.map(
+      (code) => `
+        <li tabindex="0" role="option" data-value="${code}" aria-selected="${code === currentCurrency ? 'true' : 'false'}">
+          <span>${code}</span>
+        </li>
+      `
+    ).join('')}
+  </ul>
+`;
+
+const updateCurrencyToggle = () => {
+  const select = document.getElementById('currency-toggle');
+  if (!select) return;
+  const toggle = select.querySelector('.select-toggle');
+  const optionsWrap = select.querySelector('.select-options');
+  if (toggle) {
+    toggle.setAttribute('aria-label', t('nav.switchCurrency'));
+    toggle.setAttribute('title', `${t('nav.switchCurrency')}: ${currentCurrency}`);
+    if (toggle.firstChild && toggle.firstChild.nodeType === Node.TEXT_NODE) {
+      toggle.firstChild.textContent = `${currentCurrency} `;
+    } else {
+      toggle.prepend(document.createTextNode(`${currentCurrency} `));
+    }
+  }
+  optionsWrap?.querySelectorAll('li').forEach((opt) => {
+    opt.setAttribute('aria-selected', opt.dataset.value === currentCurrency ? 'true' : 'false');
+  });
+};
+
+const setupCurrencySelect = () => {
+  const select = document.getElementById('currency-toggle');
+  if (!select) return;
+  const toggle = select.querySelector('.select-toggle');
+  const optionsWrap = select.querySelector('.select-options');
+  if (!toggle || !optionsWrap) return;
+
+  const close = () => {
+    select.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  };
+
+  const open = () => {
+    select.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+  };
+
+  if (toggle.dataset.bound !== '1') {
+    toggle.dataset.bound = '1';
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      const isOpen = select.classList.contains('open');
+      isOpen ? close() : open();
+    });
+  }
+
+  optionsWrap.querySelectorAll('li').forEach((opt) => {
+    if (opt.dataset.bound === '1') return;
+    opt.dataset.bound = '1';
+    opt.addEventListener('click', () => {
+      const next = opt.dataset.value || 'USD';
+      if (!CURRENCY_CONFIG[next]) return;
+      localStorage.setItem(CURRENCY_KEY, next);
+      close();
+      window.location.reload();
+    });
+    opt.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        opt.click();
+      }
+    });
+  });
+
+  if (select.dataset.outsideBound !== '1') {
+    select.dataset.outsideBound = '1';
+    document.addEventListener('click', (e) => {
+      if (!select.contains(e.target)) close();
+    });
+  }
 };
 
 const translateDom = () => {
@@ -1585,6 +1944,8 @@ const translateDom = () => {
   if (paymentToggle?.firstChild) {
     paymentToggle.firstChild.textContent = ` ${t('checkout.selectPayment')} `;
   }
+
+  updateCurrencyToggle();
 };
 
 const initLanguage = () => {
@@ -1604,6 +1965,21 @@ const initLanguage = () => {
   }
   updateLanguageToggle();
   translateDom();
+};
+
+const initCurrency = () => {
+  currentPricingRegion = detectPricingRegionFromLocale();
+  currentCurrency = getStoredCurrency();
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle && !document.getElementById('currency-toggle')) {
+    const currencyToggle = document.createElement('div');
+    currencyToggle.id = 'currency-toggle';
+    currencyToggle.className = 'custom-select nav-currency-select';
+    currencyToggle.innerHTML = createCurrencySelectMarkup();
+    themeToggle.parentNode.insertBefore(currencyToggle, themeToggle);
+  }
+  setupCurrencySelect();
+  updateCurrencyToggle();
 };
 
 const orderStatusLabel = (status) => {
@@ -1890,6 +2266,8 @@ const addToCart = async (productIdRaw, options = {}) => {
     id: productId,
     name: t('common.product'),
     price: 0,
+    regional_prices: {},
+    base_pricing_region: 'eurasia',
     image: '',
     category: t('common.general'),
     desc: '',
@@ -1911,14 +2289,24 @@ const addToCart = async (productIdRaw, options = {}) => {
     showToast(t('common.limitReached'));
     return;
   }
+  const pricing = getDisplayPriceInfo(snapshot);
   if (existing) {
     existing.quantity += 1;
+    existing.price = pricing.displayAmount;
+    existing.price_currency = pricing.displayCurrency;
+    existing.pricing_region = pricing.region;
+    existing.regional_prices = parseRegionalPrices(snapshot.regional_prices);
+    existing.base_pricing_region = normalizePricingRegion(snapshot.base_pricing_region || 'eurasia');
   } else {
     cart.push({
       id: productId,
       quantity: 1,
       name: snapshot.name,
-      price: snapshot.price,
+      price: pricing.displayAmount,
+      price_currency: pricing.displayCurrency,
+      pricing_region: pricing.region,
+      regional_prices: parseRegionalPrices(snapshot.regional_prices),
+      base_pricing_region: normalizePricingRegion(snapshot.base_pricing_region || 'eurasia'),
       image_url: snapshot.image,
       category: snapshot.category,
       desc: snapshot.desc,
@@ -2009,6 +2397,8 @@ const createCard = (product) => {
   const card = document.createElement('article');
   card.className = 'card';
   const soldOut = isOutOfStock(product);
+  const productName = escapeHtml(product.name);
+  const productImage = safeUrl(product.image);
   if (soldOut) card.classList.add('sold-out');
   card.tabIndex = 0;
   card.setAttribute('role', 'link');
@@ -2018,9 +2408,10 @@ const createCard = (product) => {
   card.innerHTML = `
     <div class="card-media">
       ${createFavoriteButtonMarkup(product.id)}
-      <img src="${product.image}" alt="${product.name}">
+      ${buildSafetyBadgeMarkup(product)}
+      <img src="${productImage}" alt="${productName}">
     </div>
-    <h3>${product.name}</h3>
+    <h3>${productName}</h3>
     <div class="card-rating" aria-label="${safeRating.toFixed(1)} rating">
       <span class="card-rating-star" aria-hidden="true">★</span>
       <span class="card-rating-value">${safeRating.toFixed(1)}</span>
@@ -2059,8 +2450,11 @@ const createCollectionCard = (product) => {
   card.className = 'collection-card';
   const soldOut = isOutOfStock(product);
   const hasSale = Number(product.old_price) > Number(product.price);
+  const pricing = getDisplayPriceInfo(product);
   const safeRating = Number.isFinite(Number(product.rating)) ? Number(product.rating) : 0;
   const safeReviews = Number.isFinite(Number(product.reviews_count)) ? Number(product.reviews_count) : 0;
+  const productName = escapeHtml(product.name);
+  const productImage = safeUrl(product.image);
   if (soldOut) card.classList.add('sold-out');
   card.tabIndex = 0;
   card.setAttribute('role', 'link');
@@ -2068,19 +2462,20 @@ const createCollectionCard = (product) => {
   card.innerHTML = `
     <div class="collection-card-media">
       ${createFavoriteButtonMarkup(product.id)}
+      ${buildSafetyBadgeMarkup(product)}
       ${hasSale ? `<span class="collection-card-badge sale">${t('products.saleBadge')}</span>` : ''}
       ${soldOut ? `<span class="collection-card-badge stock">${t('product.outOfStock')}</span>` : ''}
-      <img src="${product.image}" alt="${product.name}">
+      <img src="${productImage}" alt="${productName}">
     </div>
     <div class="collection-card-body">
       <p class="collection-card-vendor">Dragon Toys</p>
-      <h3>${product.name}</h3>
+      <h3>${productName}</h3>
       <div class="collection-card-meta">
         <span class="collection-card-rating">★ ${safeRating.toFixed(1)}</span>
         <span class="collection-card-reviews">${safeReviews} ${t('product.reviews')}</span>
       </div>
       <div class="collection-card-price">
-        <span class="price">${formatPrice(product.price)}</span>
+        <span class="price">${formatMoneyValue(pricing.displayAmount, pricing.displayCurrency)}</span>
         ${hasSale ? `<span class="price-old">${formatPrice(product.old_price)}</span>` : ''}
       </div>
       <div class="collection-card-actions">
@@ -2119,6 +2514,7 @@ const productMeta = (product) => ({
 const openProductModal = (product) => {
   const meta = productMeta(product);
   const soldOut = isOutOfStock(product);
+  const pricing = getDisplayPriceInfo(product);
   // remove any existing modal to avoid overlay blocks
   document.querySelectorAll('.modal-backdrop').forEach((n) => n.remove());
 
@@ -2130,7 +2526,7 @@ const openProductModal = (product) => {
       <img src="${product.image}" alt="${product.name}">
       <div class="modal-row">
         <h3>${product.name}</h3>
-        <div class="price">${formatPrice(product.price)}</div>
+        <div class="price">${formatMoneyValue(pricing.displayAmount, pricing.displayCurrency)}</div>
       </div>
       ${product.desc ? `<p class="muted">${product.desc}</p>` : ''}
       ${(product.tags || []).length ? `<div class="tag-row">${product.tags.map((t) => `<span class="pill">${t}</span>`).join('')}</div>` : ''}
@@ -2481,7 +2877,7 @@ const getCollectionProducts = () => {
 
   const filtered = products.filter((product) => {
     const productTags = Array.isArray(product.tags) ? product.tags.map((tag) => tag.toLowerCase()) : [];
-    const price = Number(product.price) || 0;
+    const price = getDisplayPriceInfo(product).displayAmount;
     const inStock = !isOutOfStock(product);
     const matchesAvailability =
       availability.length === 0 ||
@@ -2516,9 +2912,9 @@ const getCollectionProducts = () => {
       case 'alpha-desc':
         return b.name.localeCompare(a.name, currentLanguage === 'ru' ? 'ru' : 'en');
       case 'price-asc':
-        return (Number(a.price) || 0) - (Number(b.price) || 0);
+        return getDisplayPriceInfo(a).displayAmount - getDisplayPriceInfo(b).displayAmount;
       case 'price-desc':
-        return (Number(b.price) || 0) - (Number(a.price) || 0);
+        return getDisplayPriceInfo(b).displayAmount - getDisplayPriceInfo(a).displayAmount;
       case 'newest':
         return productTimestamp(b) - productTimestamp(a);
       case 'oldest':
@@ -2857,13 +3253,19 @@ const renderCartPage = async () => {
       if (!prod && !item.name) return null;
       const data =
         prod || { id: item.id, name: item.name || t('common.product'), price: item.price || 0, image: item.image_url || item.image || '', category: item.category || t('common.general') };
+      const pricing = resolveCartItemPricing(item, prod);
       const requestedQty = Math.max(1, parseQty(item.quantity || 1));
       const availableQty = parseQty(data.quantity ?? item.stock_quantity ?? 0);
       const syncedQty = availableQty > 0 ? Math.min(requestedQty, availableQty) : requestedQty;
-      if (syncedQty !== requestedQty || parseQty(item.stock_quantity) !== availableQty) {
+      if (
+        syncedQty !== requestedQty ||
+        parseQty(item.stock_quantity) !== availableQty ||
+        Number(item.price) !== Number(pricing.price) ||
+        String(item.price_currency || '').toUpperCase() !== pricing.price_currency
+      ) {
         cartChanged = true;
       }
-      return { ...data, quantity: syncedQty, stock_quantity: availableQty };
+      return { ...data, ...pricing, quantity: syncedQty, stock_quantity: availableQty };
     })
     .filter((p) => p && p.quantity);
 
@@ -2899,11 +3301,11 @@ const renderCartPage = async () => {
     const row = document.createElement('div');
     row.className = 'cart-item';
     row.innerHTML = `
-      <img src="${item.image_url || item.image}" alt="${item.name}">
+      <img src="${safeUrl(item.image_url || item.image)}" alt="${escapeHtml(item.name)}">
       <div class="cart-detail">
-        <h3>${item.name}</h3>
-        <p class="muted">${formatPrice(item.price)} ${t('cart.each')}</p>
-        <p class="muted">${t('cart.category')}: ${item.category}</p>
+        <h3>${escapeHtml(item.name)}</h3>
+        <p class="muted">${formatStoredMoney(item.price, item.price_currency)} ${t('cart.each')}</p>
+        <p class="muted">${t('cart.category')}: ${escapeHtml(item.category)}</p>
       </div>
       <div class="cart-controls">
         <div class="qty-controls" data-id="${item.id}">
@@ -2911,14 +3313,14 @@ const renderCartPage = async () => {
           <input type="number" min="1" ${item.stock_quantity > 0 ? `max="${item.stock_quantity}"` : ''} class="qty-input" data-id="${item.id}" value="${item.quantity}">
           <button class="qty-btn increment" type="button" data-id="${item.id}">+</button>
         </div>
-        <div class="price">${formatPrice(subtotal)}</div>
+        <div class="price">${formatStoredMoney(subtotal, item.price_currency)}</div>
         <button class="btn ghost remove-item" data-id="${item.id}">${t('cart.remove')}</button>
       </div>
     `;
     list.appendChild(row);
   });
 
-  totalEl.textContent = formatPrice(total);
+  totalEl.textContent = formatStoredMoney(total, currentCurrency);
 };
 
 const loadProductReviews = async (productId, { includeOwn = true } = {}) => {
@@ -3009,7 +3411,7 @@ const renderProductReviewsSection = async (product) => {
       ? `<p class="muted small">${t('product.reviewRejected')}</p>`
       : '';
 
-  if (!canReview && !own) {
+  if (!canReview) {
     formWrap.innerHTML = `<p class="muted">${t('product.reviewPurchasedOnly')}</p>`;
     return;
   }
@@ -3039,6 +3441,11 @@ const renderProductReviewsSection = async (product) => {
   const formMessage = document.getElementById('review-form-message');
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const purchased = await hasPurchasedProduct(product.id);
+    if (!purchased) {
+      if (formMessage) formMessage.textContent = t('product.reviewPurchasedOnly');
+      return;
+    }
     const rating = Math.min(5, Math.max(1, Number(form.querySelector('#review-rating')?.value || 5)));
     const comment = String(form.querySelector('#review-comment')?.value || '').trim();
     if (!comment) {
@@ -3128,14 +3535,19 @@ const fillProductPage = (p) => {
   const ratingEl = document.getElementById('product-rating');
   const reviewsEl = document.getElementById('product-reviews');
   const colorRow = document.getElementById('color-row');
+  const safetyRow = document.getElementById('product-safety-row');
+  const safetyBlock = document.getElementById('product-safety-block');
+  const safetyGrid = document.getElementById('product-safety-grid');
   const specGrid = document.getElementById('spec-grid');
   const specsBtn = document.getElementById('specs-scroll-btn');
   const wishlistBtn = document.getElementById('btn-wishlist');
   if (!p) return;
   const colors = parseProductColors(p.color);
+  const safetyEntries = buildSafetyEntries(p);
+  const pricing = getDisplayPriceInfo(p);
   nameEl.textContent = p.name;
-  descEl.innerHTML = `<p>${p.desc || ''}</p><p class=\"muted\">${p.features || ''}</p>`;
-  priceEl.textContent = formatPrice(p.price);
+  descEl.innerHTML = `${renderTextParagraphs(p.desc)}${p.features ? `<p class="muted">${escapeHtml(p.features)}</p>` : ''}`;
+  priceEl.textContent = formatMoneyValue(pricing.displayAmount, pricing.displayCurrency);
   const qty = parseQty(p.quantity);
   if (qty > 5) stockEl.textContent = t('product.inStock');
   else if (qty > 0) stockEl.textContent = t('product.onlyLeft', { count: qty });
@@ -3171,12 +3583,12 @@ const fillProductPage = (p) => {
   };
 
   if (mainImg) {
-    mainImg.src = current;
+    mainImg.src = safeUrl(current);
     mainImg.alt = p.name;
   }
   if (modelViewer) {
     if (canShowModel) {
-      modelViewer.setAttribute('src', p.model_url);
+      modelViewer.setAttribute('src', safeUrl(p.model_url, { allowDataImage: false }));
       modelViewer.setAttribute('alt', p.name);
     } else {
       modelViewer.removeAttribute('src');
@@ -3201,10 +3613,10 @@ const fillProductPage = (p) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'thumb';
-      btn.innerHTML = `<img src=\"${url}\" alt=\"thumb\">`;
+      btn.innerHTML = `<img src=\"${safeUrl(url)}\" alt=\"thumb\">`;
       btn.addEventListener('click', () => {
         current = url;
-        mainImg.src = url;
+        mainImg.src = safeUrl(url);
         setMediaMode('image');
       });
       thumbs.appendChild(btn);
@@ -3232,13 +3644,41 @@ const fillProductPage = (p) => {
     `
     : '';
 
+  if (safetyRow) {
+    const pills = [
+      p.age_rating ? `<span class="safety-pill highlight">${escapeHtml(p.age_rating)}</span>` : '',
+      ...normalizeSafetyList(p.certifications).map((item) => `<span class="safety-pill">${escapeHtml(item)}</span>`)
+    ].filter(Boolean);
+    safetyRow.innerHTML = pills.join('');
+    safetyRow.classList.toggle('hidden', !pills.length);
+  }
+
+  if (safetyBlock && safetyGrid) {
+    if (safetyEntries.length) {
+      safetyBlock.classList.remove('hidden');
+      safetyGrid.innerHTML = safetyEntries
+        .map(
+          (entry) => `
+            <article class="safety-card">
+              <span class="muted tiny">${escapeHtml(entry.label)}</span>
+              <p>${escapeHtml(entry.value)}</p>
+            </article>
+          `
+        )
+        .join('');
+    } else {
+      safetyBlock.classList.add('hidden');
+      safetyGrid.innerHTML = '';
+    }
+  }
+
   specGrid.innerHTML = `
-    ${p.type ? `<div><span class=\"muted tiny\">${t('product.type')}</span><div>${p.type}</div></div>` : ''}
-    ${p.transport_type ? `<div><span class=\"muted tiny\">${t('product.transport')}</span><div>${p.transport_type}</div></div>` : ''}
-    ${p.control_type ? `<div><span class=\"muted tiny\">${t('product.control')}</span><div>${p.control_type}</div></div>` : ''}
-    ${p.features ? `<div><span class=\"muted tiny\">${t('product.features')}</span><div>${p.features}</div></div>` : ''}
-    ${p.country ? `<div><span class=\"muted tiny\">${t('product.country')}</span><div>${p.country}</div></div>` : ''}
-    ${p.size ? `<div><span class=\"muted tiny\">${t('product.size')}</span><div>${p.size}</div></div>` : ''}
+    ${p.type ? `<div><span class=\"muted tiny\">${t('product.type')}</span><div>${escapeHtml(p.type)}</div></div>` : ''}
+    ${p.transport_type ? `<div><span class=\"muted tiny\">${t('product.transport')}</span><div>${escapeHtml(p.transport_type)}</div></div>` : ''}
+    ${p.control_type ? `<div><span class=\"muted tiny\">${t('product.control')}</span><div>${escapeHtml(p.control_type)}</div></div>` : ''}
+    ${p.features ? `<div><span class=\"muted tiny\">${t('product.features')}</span><div>${escapeHtml(p.features)}</div></div>` : ''}
+    ${p.country ? `<div><span class=\"muted tiny\">${t('product.country')}</span><div>${escapeHtml(p.country)}</div></div>` : ''}
+    ${p.size ? `<div><span class=\"muted tiny\">${t('product.size')}</span><div>${escapeHtml(p.size)}</div></div>` : ''}
   `;
 
   const addBtn = document.getElementById('btn-add-cart');
@@ -3476,7 +3916,8 @@ const renderCheckout = async () => {
       if (!prod && !item.name) return null;
       const data =
         prod || { id: item.id, name: item.name || t('common.product'), price: item.price || 0, image: item.image_url || item.image || '', category: item.category || t('common.general') };
-      return { ...data, quantity: item.quantity || 1, image_url: item.image_url || item.image || '' };
+      const pricing = resolveCartItemPricing(item, prod);
+      return { ...data, ...pricing, quantity: item.quantity || 1, image_url: item.image_url || item.image || '' };
     })
     .filter((p) => p && p.quantity);
 
@@ -3499,17 +3940,17 @@ const renderCheckout = async () => {
     const row = document.createElement('div');
     row.className = 'checkout-item';
     row.innerHTML = `
-      <img src="${item.image_url || item.image}" alt="${item.name}">
+      <img src="${safeUrl(item.image_url || item.image)}" alt="${escapeHtml(item.name)}">
       <div>
-        <h3>${item.name}</h3>
-        <p class="muted">${formatPrice(item.price)} x ${item.quantity}</p>
+        <h3>${escapeHtml(item.name)}</h3>
+        <p class="muted">${formatStoredMoney(item.price, item.price_currency)} x ${item.quantity}</p>
       </div>
-      <div class="price">${formatPrice(subtotal)}</div>
+      <div class="price">${formatStoredMoney(subtotal, item.price_currency)}</div>
     `;
     itemsWrap.appendChild(row);
   });
 
-  totalEl.textContent = formatPrice(total);
+  totalEl.textContent = formatStoredMoney(total, currentCurrency);
   setupCustomSelect({ preferRussian: isRussianLocale() });
 
   if (form && form.dataset.bound !== '1') {
@@ -3530,6 +3971,8 @@ const renderCheckout = async () => {
         id: m.id,
         name: m.name,
         price: m.price,
+        currency: m.price_currency,
+        pricing_region: m.pricing_region,
         quantity: m.quantity,
         image_url: m.image_url || m.image || ''
       }));
@@ -3548,81 +3991,44 @@ const renderCheckout = async () => {
         return;
       }
 
-      const orderPayload = {
-        user_email: (user.email || '').trim().toLowerCase(),
-        user_name: (document.getElementById('name')?.value || user?.user_metadata?.full_name || '').trim(),
-        items: orderItems,
-        total,
-        address: addressValue,
-        payment_method: selectedMethod,
-        payment_status: 'pending',
-        status: 'pending'
-      };
-
-      let reservedStock = null;
-      let createdOrder = null;
       try {
-        if (window.db?.reserveProductQuantitiesDb) {
-          reservedStock = await window.db.reserveProductQuantitiesDb(orderItems);
+        if (!window.db?.secureCheckoutDb) {
+          throw new Error('Secure checkout is not configured. Deploy secure-checkout function in Supabase.');
         }
-        const orderData = window.db?.insertOrderDb ? await window.db.insertOrderDb(orderPayload) : [];
+        const orderData = await window.db.secureCheckoutDb({
+          user_name: (document.getElementById('name')?.value || user?.user_metadata?.full_name || '').trim(),
+          address: addressValue,
+          payment_method: selectedMethod,
+          items: orderItems.map((item) => ({
+            id: item.id,
+            quantity: item.quantity
+          })),
+          locale: currentLanguage,
+          pricing_region: currentPricingRegion,
+          currency: currentCurrency
+        });
         console.log('DATA:', orderData);
         console.log('ERROR:', null);
-        createdOrder = Array.isArray(orderData) ? orderData[0] : null;
-        if (!createdOrder?.id) {
-          throw new Error('Order was not created');
-        }
-
-        setFeedback(t('checkout.processing'), 'pending');
-
-        const paymentResult = await startOrderPayment({
-          orderId: createdOrder.id,
-          method: selectedMethod,
-          amount: total,
-          user,
-          items: orderItems,
-          address: addressValue
-        });
-
-        const paid = paymentResult.paid === true;
-        const paymentStatus = paid ? 'paid' : 'pending';
-        const orderStatus = paid ? 'processing' : 'pending';
-        if (window.db?.updateOrderPaymentDb) {
-          const paymentUpdateData = await window.db.updateOrderPaymentDb(createdOrder.id, {
-            payment_method: selectedMethod,
-            payment_status: paymentStatus,
-            status: orderStatus
-          });
-          console.log('DATA:', paymentUpdateData);
-          console.log('ERROR:', null);
-        }
-
-        if (!paid) {
-          setFeedback(t('checkout.paymentPending'), 'error');
-          throw new Error(t('checkout.paymentFailed'));
+        const paid = orderData?.paid === true || String(orderData?.payment_status || '').toLowerCase() === 'paid';
+        const orderCreated = orderData?.order_created === true || Boolean(orderData?.order?.id || orderData?.order_id);
+        if (!orderCreated) {
+          throw new Error(orderData?.message || 'Secure checkout failed');
         }
 
         await clearCart();
-        setFeedback('', '');
+        if (paid) {
+          setFeedback('', '');
+        } else {
+          setFeedback(orderData?.message || t('checkout.paymentPending'), 'pending');
+        }
         confirmation.classList.remove('hidden');
-        confirmation.textContent = t('checkout.thanks');
+        confirmation.textContent = paid ? t('checkout.thanks') : orderData?.message || t('checkout.paymentPending');
         itemsWrap.innerHTML = '';
-        totalEl.textContent = formatPrice(0);
-        subtitle.textContent = t('checkout.thanks');
+        totalEl.textContent = formatStoredMoney(0, currentCurrency);
+        subtitle.textContent = paid ? t('checkout.thanks') : t('checkout.paymentPending');
         orders = await loadOrders(isAdmin() ? {} : { user_email: user.email });
         products = await loadProducts();
       } catch (error) {
-        if (!createdOrder && reservedStock?.length && window.db?.restoreProductQuantitiesDb) {
-          try {
-            const rollbackData = await window.db.restoreProductQuantitiesDb(reservedStock);
-            console.log('DATA:', rollbackData);
-            console.log('ERROR:', null);
-          } catch (rollbackError) {
-            console.log('DATA:', null);
-            console.log('ERROR:', rollbackError);
-            console.error(rollbackError);
-          }
-        }
         console.log('DATA:', null);
         console.log('ERROR:', error);
         console.error(error);
@@ -3766,8 +4172,8 @@ const renderProfile = async () => {
       <div class="profile-summary-main">
         <div class="profile-avatar">${displayName.charAt(0).toUpperCase()}</div>
         <div class="profile-summary-copy">
-          <h3>${displayName}</h3>
-          <p class="muted">${user.email}</p>
+          <h3>${escapeHtml(displayName)}</h3>
+          <p class="muted">${escapeHtml(user.email)}</p>
           ${roleBadge ? `<div class="profile-summary-meta">${roleBadge}</div>` : ''}
         </div>
       </div>
@@ -3788,7 +4194,7 @@ const renderProfile = async () => {
     </div>
   `;
 
-  const renderOrderItems = (items = []) => {
+  const renderOrderItems = (items = [], fallbackCurrency = currentCurrency) => {
     if (!Array.isArray(items) || !items.length) {
       return `<p class="muted small">${t('profile.noProducts')}</p>`;
     }
@@ -3798,10 +4204,10 @@ const renderProfile = async () => {
           .map(
             (item) => `
               <article class="profile-item-card">
-                <img src="${item.image_url || item.image || ''}" alt="${item.name || t('common.product')}">
+                <img src="${safeUrl(item.image_url || item.image || '')}" alt="${escapeHtml(item.name || t('common.product'))}">
                 <div class="profile-item-copy">
-                  <h4>${item.name || t('common.product')}</h4>
-                  <p class="muted small">${formatPrice(Number(item.price) || 0)} x ${item.quantity || item.qty || 1}</p>
+                  <h4>${escapeHtml(item.name || t('common.product'))}</h4>
+                  <p class="muted small">${formatStoredMoney(Number(item.price) || 0, item.currency || item.price_currency || fallbackCurrency)} x ${item.quantity || item.qty || 1}</p>
                   ${item.id ? `<a class="profile-item-link" href="product.html?id=${item.id}">${t('profile.viewProduct')}</a>` : ''}
                 </div>
               </article>
@@ -3821,6 +4227,7 @@ const renderProfile = async () => {
     `;
   } else {
     const active = userOrders.find((order) => idsEqual(order.id, activeOrderId)) || userOrders[0];
+    const activeOrderCurrency = active.currency || currentCurrency;
     const itemCount = Array.isArray(active.items)
       ? active.items.reduce((sum, item) => sum + Number(item.quantity || item.qty || 1), 0)
       : Number(active.items) || 0;
@@ -3841,7 +4248,7 @@ const renderProfile = async () => {
           </div>
           <div class="profile-detail-card">
             <span class="muted small">${t('cart.total')}</span>
-            <strong>${formatPrice(active.total || 0)}</strong>
+            <strong>${formatStoredMoney(active.total || 0, activeOrderCurrency)}</strong>
           </div>
           <div class="profile-detail-card">
             <span class="muted small">${t('profile.items')}</span>
@@ -3856,8 +4263,8 @@ const renderProfile = async () => {
           <span class="muted small">${t('profile.timelineTitle')}</span>
           ${renderOrderTimeline(active.status)}
         </div>
-        ${active.address ? `<div class="profile-order-extra"><span class="muted small">${t('profile.address')}</span><p>${active.address}</p></div>` : ''}
-        ${renderOrderItems(active.items)}
+        ${active.address ? `<div class="profile-order-extra"><span class="muted small">${t('profile.address')}</span><p>${escapeHtml(active.address)}</p></div>` : ''}
+        ${renderOrderItems(active.items, activeOrderCurrency)}
       </div>
     `;
   }
@@ -3870,6 +4277,7 @@ const renderProfile = async () => {
   }
 
   previousOrders.forEach((order) => {
+    const orderCurrency = order.currency || currentCurrency;
     const itemCount = Array.isArray(order.items)
       ? order.items.reduce((sum, item) => sum + Number(item.quantity || item.qty || 1), 0)
       : Number(order.items) || 0;
@@ -3884,7 +4292,7 @@ const renderProfile = async () => {
         </div>
         <div class="history-side">
           <span class="status-pill">${orderStatusLabel(order.status)}</span>
-          <span class="price">${formatPrice(order.total)}</span>
+          <span class="price">${formatStoredMoney(order.total, orderCurrency)}</span>
         </div>
       </div>
       <div class="history-meta">
@@ -3898,8 +4306,8 @@ const renderProfile = async () => {
         <div class="profile-order-timeline-wrap compact">
           ${renderOrderTimeline(order.status)}
         </div>
-        ${order.address ? `<p class="muted small history-address">${t('profile.address')}: ${order.address}</p>` : ''}
-        ${renderOrderItems(order.items)}
+        ${order.address ? `<p class="muted small history-address">${t('profile.address')}: ${escapeHtml(order.address)}</p>` : ''}
+        ${renderOrderItems(order.items, orderCurrency)}
       </div>
     `;
     const toggleBtn = row.querySelector('.history-toggle-btn');
@@ -3920,13 +4328,16 @@ const renderAdminProducts = () => {
   if (!list) return;
   list.innerHTML = '';
   products.forEach((p) => {
+    const baseRegion = normalizePricingRegion(p.base_pricing_region || 'eurasia');
+    const baseCurrency = REGION_PRICING_CONFIG[baseRegion]?.currency || 'RUB';
+    const baseRegionLabel = t(REGION_PRICING_CONFIG[baseRegion]?.nameKey || 'admin.regionEurasia');
     const item = document.createElement('div');
     item.className = 'admin-item';
     item.innerHTML = `
-      <img src="${p.image}" alt="${p.name}">
+      <img src="${safeUrl(p.image)}" alt="${escapeHtml(p.name)}">
       <div>
-        <strong>${p.name}</strong>
-        <p class="muted">${formatPrice(p.price)} · ${t('admin.qty')}: ${displayQty(p.quantity)} · ${t('admin.category')}: ${p.category || t('common.general')}</p>
+        <strong>${escapeHtml(p.name)}</strong>
+        <p class="muted">${formatStoredMoney(p.price, baseCurrency)} · ${baseRegionLabel} · ${t('admin.qty')}: ${displayQty(p.quantity)} · ${t('admin.category')}: ${escapeHtml(p.category || t('common.general'))}</p>
       </div>
       <div class="admin-actions">
         <button class="btn ghost small-btn edit-prod" data-id="${p.id}">${t('admin.edit')}</button>
@@ -3964,7 +4375,7 @@ const renderAdminOrders = () => {
           ${options}
         </select>
       </div>
-      <span class="price">${formatPrice(o.total || 0)}</span>
+      <span class="price">${formatStoredMoney(o.total || 0, o.currency || currentCurrency)}</span>
     `;
     wrap.appendChild(row);
   });
@@ -3986,7 +4397,7 @@ const renderAdminQuestions = () => {
     const status = normalizeSupportStatus(msg.status);
     const fromLabel = msg.user_name ? `${msg.user_name} (${msg.user_email || '—'})` : msg.user_email || '—';
     const productLine = msg.product_name
-      ? `<p class="muted small">${t('support.product')}: <strong>${msg.product_name}</strong></p>`
+      ? `<p class="muted small">${t('support.product')}: <strong>${escapeHtml(msg.product_name)}</strong></p>`
       : '';
     card.innerHTML = `
       <div class="admin-question-meta">
@@ -3997,15 +4408,15 @@ const renderAdminQuestions = () => {
           <option value="answered" ${status === 'answered' ? 'selected' : ''}>${t('admin.statusAnswered')}</option>
         </select>
       </div>
-      <p class="muted small">${t('admin.from')}: ${fromLabel}</p>
+      <p class="muted small">${t('admin.from')}: ${escapeHtml(fromLabel)}</p>
       ${productLine}
       <div>
         <p class="muted small">${t('admin.questionText')}</p>
-        <p class="admin-question-message">${msg.message || '—'}</p>
+        <p class="admin-question-message">${escapeHtml(msg.message || '—')}</p>
       </div>
       <div class="admin-question-answer">
         <label class="muted small" for="answer-${msg.id}">${t('admin.reply')}</label>
-        <textarea id="answer-${msg.id}" class="question-answer-input" data-id="${msg.id}" placeholder="${t('admin.replyPlaceholder')}">${msg.answer || ''}</textarea>
+        <textarea id="answer-${msg.id}" class="question-answer-input" data-id="${msg.id}" placeholder="${t('admin.replyPlaceholder')}">${escapeHtml(msg.answer || '')}</textarea>
       </div>
       <div class="admin-question-actions">
         <button type="button" class="btn primary small-btn answer-question" data-id="${msg.id}">${t('admin.sendReply')}</button>
@@ -4091,10 +4502,15 @@ const handleAdminPage = async () => {
   const galleryFileInput = document.getElementById('prod-gallery-file');
   const specsList = document.getElementById('prod-specs-list');
   const addSpecBtn = document.getElementById('add-spec-row');
+  const baseRegionEl = document.getElementById('prod-base-region');
+  const autoFillRegionalBtn = document.getElementById('autofill-region-prices');
   const list = document.getElementById('admin-products');
   const ordersWrap = document.getElementById('admin-orders');
   const questionsWrap = document.getElementById('admin-questions');
   const reviewsWrap = document.getElementById('admin-reviews');
+  const regionalPriceInputs = Object.fromEntries(
+    REGION_ORDER.map((region) => [region, document.getElementById(`price-${region}`)])
+  );
 
   const escapeAttr = (value) =>
     String(value)
@@ -4172,6 +4588,36 @@ const handleAdminPage = async () => {
     zone.classList.toggle('is-dragover', !!active);
   };
 
+  const getRegionalPricingDraft = () => {
+    const next = {};
+    REGION_ORDER.forEach((region) => {
+      const raw = regionalPriceInputs[region]?.value;
+      const amount = Number(raw);
+      if (Number.isFinite(amount) && amount > 0) next[region] = amount;
+    });
+    return next;
+  };
+
+  const fillRegionalPricingInputs = (prices = {}) => {
+    const normalized = parseRegionalPrices(prices);
+    REGION_ORDER.forEach((region) => {
+      const input = regionalPriceInputs[region];
+      if (!input) return;
+      input.value = normalized[region] ? String(normalized[region]) : '';
+    });
+  };
+
+  const autoFillRegionalPrices = () => {
+    const basePrice = Number(priceEl?.value || 0);
+    const baseRegion = normalizePricingRegion(baseRegionEl?.value || 'eurasia');
+    if (!Number.isFinite(basePrice) || basePrice <= 0) return;
+    const next = {};
+    REGION_ORDER.forEach((region) => {
+      next[region] = region === baseRegion ? basePrice : convertRegionalBasePrice(basePrice, baseRegion, region);
+    });
+    fillRegionalPricingInputs(next);
+  };
+
   const syncImageFieldPreview = () => {
     renderMainImagePreview(imageEl?.value.trim() || '');
   };
@@ -4240,6 +4686,8 @@ const handleAdminPage = async () => {
   const resetForm = () => {
     idEl.value = '';
     form?.reset();
+    if (baseRegionEl) baseRegionEl.value = 'eurasia';
+    fillRegionalPricingInputs({});
     fillEditorSpecs([]);
     renderMainImagePreview('');
     renderGalleryPreview([]);
@@ -4279,6 +4727,7 @@ const handleAdminPage = async () => {
   });
   imageEl?.addEventListener('input', syncImageFieldPreview);
   document.getElementById('prod-gallery')?.addEventListener('input', syncGalleryFieldPreview);
+  autoFillRegionalBtn?.addEventListener('click', autoFillRegionalPrices);
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -4290,6 +4739,12 @@ const handleAdminPage = async () => {
     const size = document.getElementById('prod-size')?.value.trim() || '';
     const category = document.getElementById('prod-category')?.value.trim() || t('common.general');
     const qty = Number(document.getElementById('prod-qty')?.value || 0);
+    const base_pricing_region = normalizePricingRegion(baseRegionEl?.value || 'eurasia');
+    const regional_prices = getRegionalPricingDraft();
+    const age_rating = document.getElementById('prod-age-rating')?.value.trim() || '';
+    const materials = normalizeSafetyList(document.getElementById('prod-materials')?.value || '');
+    const certifications = normalizeSafetyList(document.getElementById('prod-certifications')?.value || '');
+    const safety_warnings = document.getElementById('prod-safety-warnings')?.value.trim() || '';
     const color = document.getElementById('prod-color')?.value.trim() || '';
     const model_url = modelUrlEl?.value.trim() || '';
     const show_3d = Boolean(show3dEl?.checked && model_url);
@@ -4316,6 +4771,12 @@ const handleAdminPage = async () => {
       size,
       category,
       color,
+      base_pricing_region,
+      regional_prices,
+      age_rating,
+      materials,
+      certifications,
+      safety_warnings,
       model_url,
       show_3d,
       gallery_images,
@@ -4338,6 +4799,12 @@ const handleAdminPage = async () => {
           size: productPayload.size,
           category: productPayload.category,
           quantity: productPayload.quantity,
+          base_pricing_region: productPayload.base_pricing_region,
+          regional_prices: productPayload.regional_prices,
+          age_rating: productPayload.age_rating,
+          materials: productPayload.materials,
+          certifications: productPayload.certifications,
+          safety_warnings: productPayload.safety_warnings,
           tags: productPayload.tags
         };
 
@@ -4398,6 +4865,11 @@ const handleAdminPage = async () => {
         const sizeEl = document.getElementById('prod-size');
         const categoryEl = document.getElementById('prod-category');
         const qtyEl = document.getElementById('prod-qty');
+        const basePricingRegionEl = document.getElementById('prod-base-region');
+        const ageRatingEl = document.getElementById('prod-age-rating');
+        const materialsEl = document.getElementById('prod-materials');
+        const certificationsEl = document.getElementById('prod-certifications');
+        const warningsEl = document.getElementById('prod-safety-warnings');
         const colorEl = document.getElementById('prod-color');
         const galleryEl = document.getElementById('prod-gallery');
         const modelFieldEl = document.getElementById('prod-model-url');
@@ -4406,6 +4878,12 @@ const handleAdminPage = async () => {
         if (sizeEl) sizeEl.value = prod.size || '';
         if (categoryEl) categoryEl.value = prod.category || '';
         if (qtyEl) qtyEl.value = Number.isFinite(prod.quantity) ? prod.quantity : '';
+        if (basePricingRegionEl) basePricingRegionEl.value = normalizePricingRegion(prod.base_pricing_region || 'eurasia');
+        fillRegionalPricingInputs(prod.regional_prices || {});
+        if (ageRatingEl) ageRatingEl.value = prod.age_rating || '';
+        if (materialsEl) materialsEl.value = normalizeSafetyList(prod.materials).join(', ');
+        if (certificationsEl) certificationsEl.value = normalizeSafetyList(prod.certifications).join(', ');
+        if (warningsEl) warningsEl.value = prod.safety_warnings || '';
         if (colorEl) colorEl.value = prod.color || '';
         if (galleryEl) galleryEl.value = Array.isArray(prod.gallery_images) ? prod.gallery_images.join('\n') : '';
         if (modelFieldEl) modelFieldEl.value = prod.model_url || '';
@@ -4681,6 +5159,7 @@ const handleLogin = () => {
 
 document.addEventListener('DOMContentLoaded', async () => {
   initLanguage();
+  initCurrency();
   initTheme();
   await initAuth();
   await bootstrapProductsForPage();

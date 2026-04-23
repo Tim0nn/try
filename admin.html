@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://zyaadswbpfnnbnzucinl.supabase.co wss://zyaadswbpfnnbnzucinl.supabase.co; frame-src 'self' https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Admin - Dragon Toys</title>
   <script>
     (function () {
@@ -67,9 +69,57 @@
               <label for="prod-name" data-i18n="admin.name">Name</label>
               <input id="prod-name" required data-i18n-placeholder="admin.name" placeholder="Product name">
             </div>
-            <div class="form-row">
-              <label for="prod-price" data-i18n="admin.price">Price</label>
-              <input id="prod-price" type="number" min="0" step="0.01" required placeholder="99.99">
+            <div class="form-row pricing-base-grid">
+              <div>
+                <label for="prod-price" data-i18n="admin.basePrice">Base price</label>
+                <input id="prod-price" type="number" min="0" step="0.01" required placeholder="99.99">
+              </div>
+              <div>
+                <label for="prod-base-region" data-i18n="admin.baseRegion">Base region</label>
+                <select id="prod-base-region">
+                  <option value="america" data-i18n="admin.regionAmerica">America</option>
+                  <option value="europe" data-i18n="admin.regionEurope">Europe</option>
+                  <option value="eurasia" data-i18n="admin.regionEurasia">Eurasia</option>
+                  <option value="asia" data-i18n="admin.regionAsia">Asia</option>
+                  <option value="oceania" data-i18n="admin.regionOceania">Oceania</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row regional-pricing-block">
+              <div class="regional-pricing-head">
+                <div>
+                  <label data-i18n="admin.regionalPricing">Regional pricing</label>
+                  <p class="muted small" data-i18n="admin.regionalPricingHint">Use one base price and adjust regional prices when needed.</p>
+                </div>
+                <button id="autofill-region-prices" class="btn ghost small-btn" type="button" data-i18n="admin.autoFillRegional">Auto-fill regional prices</button>
+              </div>
+              <div class="regional-pricing-grid">
+                <label class="regional-price-field" for="price-america">
+                  <span data-i18n="admin.regionAmerica">America</span>
+                  <span class="muted tiny">USD</span>
+                  <input id="price-america" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+                <label class="regional-price-field" for="price-europe">
+                  <span data-i18n="admin.regionEurope">Europe</span>
+                  <span class="muted tiny">EUR</span>
+                  <input id="price-europe" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+                <label class="regional-price-field" for="price-eurasia">
+                  <span data-i18n="admin.regionEurasia">Eurasia</span>
+                  <span class="muted tiny">RUB</span>
+                  <input id="price-eurasia" type="number" min="0" step="1" placeholder="0">
+                </label>
+                <label class="regional-price-field" for="price-asia">
+                  <span data-i18n="admin.regionAsia">Asia</span>
+                  <span class="muted tiny">CNY</span>
+                  <input id="price-asia" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+                <label class="regional-price-field" for="price-oceania">
+                  <span data-i18n="admin.regionOceania">Oceania</span>
+                  <span class="muted tiny">AUD</span>
+                  <input id="price-oceania" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+              </div>
             </div>
             <div class="form-row">
               <label for="prod-image" data-i18n="admin.imageUrl">Image URL / file</label>
@@ -122,8 +172,24 @@
               <input id="prod-qty" type="number" min="0" step="1" placeholder="0">
             </div>
             <div class="form-row">
+              <label for="prod-age-rating" data-i18n="admin.ageRating">Age rating</label>
+              <input id="prod-age-rating" data-i18n-placeholder="admin.ageRatingPlaceholder" placeholder="e.g., 3+">
+            </div>
+            <div class="form-row">
               <label for="prod-color" data-i18n="admin.color">Color</label>
               <input id="prod-color" data-i18n-placeholder="admin.colorPlaceholder" placeholder="Red, Blue, Black">
+            </div>
+            <div class="form-row">
+              <label for="prod-materials" data-i18n="admin.materials">Materials</label>
+              <input id="prod-materials" data-i18n-placeholder="admin.materialsPlaceholder" placeholder="ABS plastic, silicone">
+            </div>
+            <div class="form-row">
+              <label for="prod-certifications" data-i18n="admin.certifications">Certificates</label>
+              <input id="prod-certifications" data-i18n-placeholder="admin.certificationsPlaceholder" placeholder="CE, ASTM F963">
+            </div>
+            <div class="form-row">
+              <label for="prod-safety-warnings" data-i18n="admin.safetyWarnings">Safety warnings</label>
+              <textarea id="prod-safety-warnings" rows="2" data-i18n-placeholder="admin.safetyWarningsPlaceholder" placeholder="Contains small parts. Adult supervision recommended."></textarea>
             </div>
             <div class="form-row">
               <label for="prod-tags" data-i18n="admin.tags">Tags (comma separated)</label>

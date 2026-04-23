@@ -48,6 +48,20 @@ const parseBooleanValue = (value) => {
   return raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on';
 };
 
+const parseListValue = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+  const raw = String(value || '').trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item || '').trim()).filter(Boolean);
+  } catch {}
+  return raw
+    .split(/[\r\n,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 const mapProduct = (p) => {
   const tags = Array.isArray(p.tags)
     ? p.tags
@@ -58,6 +72,8 @@ const mapProduct = (p) => {
         .filter(Boolean)
     : [];
   const gallery = parseGalleryValue(p.gallery_images);
+  const materials = parseListValue(p.materials);
+  const certifications = parseListValue(p.certifications);
   const rawQty = p.quantity ?? p.stock ?? 0;
   const quantity = Number.isFinite(Number(rawQty)) ? Number(rawQty) : 0;
   return {
@@ -79,6 +95,12 @@ const mapProduct = (p) => {
     desc: p.description || '',
     country: p.country || '',
     size: p.size || '',
+    base_pricing_region: p.base_pricing_region || 'eurasia',
+    regional_prices: p.regional_prices || {},
+    age_rating: p.age_rating || '',
+    materials,
+    certifications,
+    safety_warnings: p.safety_warnings || '',
     tags,
     quantity,
     category: p.category || 'General',
@@ -116,6 +138,8 @@ const mapOrder = (order) => ({
   user_name: order.user_name || '',
   items: Array.isArray(order.items) ? order.items : [],
   total: Number(order.total) || 0,
+  currency: order.currency || 'RUB',
+  pricing_region: order.pricing_region || '',
   address: order.address || '',
   payment_method: order.payment_method || '',
   payment_status: order.payment_status || 'pending',
@@ -217,6 +241,10 @@ async function createPaymentIntentDb(payload = {}) {
 
 async function confirmPaymentDb(payload = {}) {
   return invokePaymentFunction('confirm-payment', payload);
+}
+
+async function secureCheckoutDb(payload = {}) {
+  return invokePaymentFunction('secure-checkout', payload);
 }
 
 async function fetchSupportMessagesDb() {
@@ -689,6 +717,7 @@ window.db = {
   recalculateProductRatingDb,
   createPaymentIntentDb,
   confirmPaymentDb,
+  secureCheckoutDb,
   reserveProductQuantitiesDb,
   restoreProductQuantitiesDb,
   signUpAuth,

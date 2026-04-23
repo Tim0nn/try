@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://zyaadswbpfnnbnzucinl.supabase.co wss://zyaadswbpfnnbnzucinl.supabase.co; frame-src 'self' https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Product - Dragon Toys</title>
   <script>
     (function () {
@@ -81,8 +83,18 @@
         </div>
         <button id="specs-scroll-btn" class="btn ghost small-btn specs-scroll-btn hidden" type="button" data-i18n="product.specsButton">Characteristics</button>
         <div class="color-row" id="color-row"></div>
+        <div class="safety-row hidden" id="product-safety-row"></div>
         <div class="spec-grid" id="spec-grid"></div>
         <div class="description" id="product-desc"></div>
+        <section class="product-safety-block hidden" id="product-safety-block">
+          <div class="section-header">
+            <div>
+              <h3 data-i18n="product.safetyTitle">Safety & care</h3>
+              <p class="muted" data-i18n="product.safetySubtitle">Age guidance, materials and important usage notes.</p>
+            </div>
+          </div>
+          <div class="product-safety-grid" id="product-safety-grid"></div>
+        </section>
       </div>
 
       <aside class="product-purchase">
