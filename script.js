@@ -266,6 +266,11 @@ const I18N = {
       regionalPricingHint: 'Use one base price and adjust regional prices when needed.',
       autoFillRegional: 'Auto-fill regional prices',
       pricingCurrency: 'Currency',
+      formBasic: 'Basic',
+      formMedia: 'Media',
+      formPricing: 'Pricing',
+      formSafety: 'Safety',
+      formSpecs: 'Specs',
       regionAmerica: 'America',
       regionEurope: 'Europe',
       regionEurasia: 'Eurasia',
@@ -342,6 +347,10 @@ const I18N = {
       askQuestion: 'Ask about product',
       specsButton: 'Characteristics',
       specsTitle: 'Product characteristics',
+      tabDescription: 'Description',
+      tabDetails: 'Details',
+      tabSafety: 'Safety',
+      tabReviews: 'Reviews',
       relatedTitle: 'You may also like',
       relatedSubtitle: 'Similar products from our collection.',
       prevRelated: 'Previous products',
@@ -630,6 +639,11 @@ const I18N = {
       regionalPricingHint: 'Используйте одну базовую цену и при необходимости скорректируйте цены по регионам.',
       autoFillRegional: 'Автозаполнить региональные цены',
       pricingCurrency: 'Валюта',
+      formBasic: 'Основное',
+      formMedia: 'Фото',
+      formPricing: 'Цены',
+      formSafety: 'Безопасность',
+      formSpecs: 'Характеристики',
       regionAmerica: 'Америка',
       regionEurope: 'Европа',
       regionEurasia: 'Евразия',
@@ -706,6 +720,10 @@ const I18N = {
       askQuestion: 'Задать вопрос о товаре',
       specsButton: 'Характеристики',
       specsTitle: 'Характеристики товара',
+      tabDescription: 'Описание',
+      tabDetails: 'Детали',
+      tabSafety: 'Безопасность',
+      tabReviews: 'Отзывы',
       relatedTitle: 'Похожие товары',
       relatedSubtitle: 'Другие товары, которые могут вам понравиться.',
       prevRelated: 'Предыдущие товары',
@@ -1661,6 +1679,27 @@ const buildSafetyEntries = (product) => {
   ].filter(Boolean);
 };
 
+const buildProductDetailEntries = (product) =>
+  [
+    product?.country ? { label: t('product.country'), value: product.country } : null,
+    product?.size ? { label: t('product.size'), value: product.size } : null,
+    product?.color ? { label: t('product.color'), value: parseProductColors(product.color).join(', ') } : null,
+    product?.category ? { label: t('admin.category'), value: product.category } : null,
+    product?.features ? { label: t('product.features'), value: product.features } : null
+  ].filter(Boolean);
+
+const renderInfoCards = (entries = []) =>
+  entries
+    .map(
+      (entry) => `
+        <article class="safety-card">
+          <span class="muted tiny">${escapeHtml(entry.label)}</span>
+          <p>${escapeHtml(entry.value)}</p>
+        </article>
+      `
+    )
+    .join('');
+
 const parseGalleryInput = (value) => {
   if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
   const raw = String(value || '').trim();
@@ -1980,6 +2019,53 @@ const initCurrency = () => {
   }
   setupCurrencySelect();
   updateCurrencyToggle();
+};
+
+const setupNavSettings = () => {
+  const nav = document.querySelector('.nav-links');
+  const themeToggle = document.getElementById('theme-toggle');
+  const langToggle = document.getElementById('lang-toggle');
+  const currencyToggle = document.getElementById('currency-toggle');
+  if (!nav || !themeToggle || !langToggle || !currencyToggle || document.getElementById('nav-settings')) return;
+
+  const settings = document.createElement('div');
+  settings.id = 'nav-settings';
+  settings.className = 'nav-settings';
+  settings.innerHTML = `
+    <button class="nav-settings-toggle" type="button" aria-expanded="false" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" fill="none" stroke="currentColor" stroke-width="1.7"/>
+        <path d="M19 12a7.7 7.7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-1.8-1L14.4 3h-4.8l-.3 3.1a7.8 7.8 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.5a7.7 7.7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 1.8 1l.3 3.1h4.8l.3-3.1a7.8 7.8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <div class="nav-settings-panel"></div>
+  `;
+  nav.insertBefore(settings, document.getElementById('nav-wishlist') || themeToggle.nextSibling);
+  const panel = settings.querySelector('.nav-settings-panel');
+  panel.appendChild(langToggle);
+  panel.appendChild(currencyToggle);
+  panel.appendChild(themeToggle);
+
+  const toggle = settings.querySelector('.nav-settings-toggle');
+  const close = () => {
+    settings.classList.remove('open');
+    nav.classList.remove('settings-open');
+    toggle.setAttribute('aria-expanded', 'false');
+  };
+  toggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    const isOpen = settings.classList.contains('open');
+    if (isOpen) {
+      close();
+    } else {
+      settings.classList.add('open');
+      nav.classList.add('settings-open');
+    }
+    toggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+  });
+  document.addEventListener('click', (e) => {
+    if (!settings.contains(e.target)) close();
+  });
 };
 
 const orderStatusLabel = (status) => {
@@ -2399,6 +2485,7 @@ const createCard = (product) => {
   const soldOut = isOutOfStock(product);
   const productName = escapeHtml(product.name);
   const productImage = safeUrl(product.image);
+  const pricing = getDisplayPriceInfo(product);
   if (soldOut) card.classList.add('sold-out');
   card.tabIndex = 0;
   card.setAttribute('role', 'link');
@@ -2417,6 +2504,10 @@ const createCard = (product) => {
       <span class="card-rating-value">${safeRating.toFixed(1)}</span>
       <span class="card-rating-sep" aria-hidden="true">·</span>
       <span class="card-rating-count">${safeReviews} ${t('product.reviews')}</span>
+    </div>
+    <div class="card-commerce-row">
+      <span class="price">${formatMoneyValue(pricing.displayAmount, pricing.displayCurrency)}</span>
+      <span class="stock-mini ${soldOut ? 'is-out' : 'is-in'}">${soldOut ? t('product.outOfStock') : t('product.inStock')}</span>
     </div>
     <div class="card-actions">
       <button class="btn primary add-to-cart" data-id="${product.id}" ${soldOut ? 'disabled' : ''}>${soldOut ? t('product.outOfStock') : t('product.addToCart')}</button>
@@ -2476,6 +2567,7 @@ const createCollectionCard = (product) => {
       </div>
       <div class="collection-card-price">
         <span class="price">${formatMoneyValue(pricing.displayAmount, pricing.displayCurrency)}</span>
+        <span class="stock-mini ${soldOut ? 'is-out' : 'is-in'}">${soldOut ? t('product.outOfStock') : t('product.inStock')}</span>
         ${hasSale ? `<span class="price-old">${formatPrice(product.old_price)}</span>` : ''}
       </div>
       <div class="collection-card-actions">
@@ -2823,6 +2915,9 @@ const renderProductSpecsSection = (product) => {
   const section = document.getElementById('product-specs-section');
   const grid = document.getElementById('product-specs-grid');
   const scrollBtn = document.getElementById('specs-scroll-btn');
+  const detailsGrid = document.getElementById('product-tab-details');
+  const detailTabs = document.getElementById('product-detail-tabs');
+  const detailsTabButton = document.querySelector('[data-product-tab="details"]');
   if (!section || !grid || !scrollBtn) return;
 
   const specs = getProductSpecs(product);
@@ -2832,22 +2927,65 @@ const renderProductSpecsSection = (product) => {
     return;
   }
 
-  grid.innerHTML = '';
-  specs.forEach((spec) => {
-    const item = document.createElement('article');
-    item.className = 'product-spec-item';
-    item.innerHTML = `
-      <h4>${spec.name}</h4>
-      <p class="muted">${spec.value}</p>
-    `;
-    grid.appendChild(item);
-  });
+  const customSpecsMarkup = specs.map((spec) => `
+    <article class="safety-card product-spec-card">
+      <span>${escapeHtml(spec.name)}</span>
+      <strong>${escapeHtml(spec.value)}</strong>
+    </article>
+  `).join('');
 
-  section.classList.remove('hidden');
+  if (detailsGrid) {
+    detailsGrid.insertAdjacentHTML('beforeend', customSpecsMarkup);
+    section.classList.add('hidden');
+  } else {
+    grid.innerHTML = customSpecsMarkup;
+    section.classList.remove('hidden');
+  }
+
   scrollBtn.classList.remove('hidden');
   scrollBtn.onclick = () => {
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    detailsTabButton?.click();
+    (detailTabs || section).scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+};
+
+const setupProductDetailTabs = () => {
+  if (document.body.dataset.page !== 'product') return;
+  const tabs = Array.from(document.querySelectorAll('[data-product-tab]'));
+  const panels = Array.from(document.querySelectorAll('[data-product-tab-panel]'));
+  if (!tabs.length || !panels.length) return;
+  const setTab = (tabName = 'description') => {
+    tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.productTab === tabName));
+    panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.productTabPanel === tabName));
+  };
+  tabs.forEach((tab) => {
+    if (tab.dataset.bound === '1') return;
+    tab.dataset.bound = '1';
+    tab.addEventListener('click', () => setTab(tab.dataset.productTab || 'description'));
+  });
+  const reviewsSection = document.getElementById('product-reviews-section');
+  const reviewsSlot = document.getElementById('product-reviews-slot');
+  if (reviewsSection && reviewsSlot && !reviewsSlot.contains(reviewsSection)) {
+    reviewsSlot.appendChild(reviewsSection);
+  }
+  setTab('description');
+};
+
+const setupAdminProductFormTabs = () => {
+  if (document.body.dataset.page !== 'admin') return;
+  const tabs = Array.from(document.querySelectorAll('[data-product-form-tab]'));
+  const panels = Array.from(document.querySelectorAll('[data-product-form-panel]'));
+  if (!tabs.length || !panels.length) return;
+  const setTab = (tabName = 'basic') => {
+    tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.productFormTab === tabName));
+    panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.productFormPanel === tabName));
+  };
+  tabs.forEach((tab) => {
+    if (tab.dataset.bound === '1') return;
+    tab.dataset.bound = '1';
+    tab.addEventListener('click', () => setTab(tab.dataset.productFormTab || 'basic'));
+  });
+  setTab('basic');
 };
 
 const state = {
@@ -3538,6 +3676,8 @@ const fillProductPage = (p) => {
   const safetyRow = document.getElementById('product-safety-row');
   const safetyBlock = document.getElementById('product-safety-block');
   const safetyGrid = document.getElementById('product-safety-grid');
+  const tabDescription = document.getElementById('product-tab-description');
+  const tabDetails = document.getElementById('product-tab-details');
   const specGrid = document.getElementById('spec-grid');
   const specsBtn = document.getElementById('specs-scroll-btn');
   const wishlistBtn = document.getElementById('btn-wishlist');
@@ -3546,7 +3686,9 @@ const fillProductPage = (p) => {
   const safetyEntries = buildSafetyEntries(p);
   const pricing = getDisplayPriceInfo(p);
   nameEl.textContent = p.name;
-  descEl.innerHTML = `${renderTextParagraphs(p.desc)}${p.features ? `<p class="muted">${escapeHtml(p.features)}</p>` : ''}`;
+  const descriptionMarkup = `${renderTextParagraphs(p.desc)}${p.features ? `<p class="muted">${escapeHtml(p.features)}</p>` : ''}`;
+  descEl.innerHTML = descriptionMarkup;
+  if (tabDescription) tabDescription.innerHTML = descriptionMarkup || `<p class="muted">${t('common.notSpecified')}</p>`;
   priceEl.textContent = formatMoneyValue(pricing.displayAmount, pricing.displayCurrency);
   const qty = parseQty(p.quantity);
   if (qty > 5) stockEl.textContent = t('product.inStock');
@@ -3656,20 +3798,16 @@ const fillProductPage = (p) => {
   if (safetyBlock && safetyGrid) {
     if (safetyEntries.length) {
       safetyBlock.classList.remove('hidden');
-      safetyGrid.innerHTML = safetyEntries
-        .map(
-          (entry) => `
-            <article class="safety-card">
-              <span class="muted tiny">${escapeHtml(entry.label)}</span>
-              <p>${escapeHtml(entry.value)}</p>
-            </article>
-          `
-        )
-        .join('');
+      safetyGrid.innerHTML = renderInfoCards(safetyEntries);
     } else {
       safetyBlock.classList.add('hidden');
       safetyGrid.innerHTML = '';
     }
+  }
+
+  if (tabDetails) {
+    const entries = buildProductDetailEntries(p);
+    tabDetails.innerHTML = entries.length ? renderInfoCards(entries) : `<p class="muted">${t('common.notSpecified')}</p>`;
   }
 
   specGrid.innerHTML = `
@@ -4508,6 +4646,7 @@ const handleAdminPage = async () => {
   const ordersWrap = document.getElementById('admin-orders');
   const questionsWrap = document.getElementById('admin-questions');
   const reviewsWrap = document.getElementById('admin-reviews');
+  setupAdminProductFormTabs();
   const regionalPriceInputs = Object.fromEntries(
     REGION_ORDER.map((region) => [region, document.getElementById(`price-${region}`)])
   );
@@ -5161,6 +5300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLanguage();
   initCurrency();
   initTheme();
+  setupNavSettings();
   await initAuth();
   await bootstrapProductsForPage();
 
@@ -5197,6 +5337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (page === 'product') {
+    setupProductDetailTabs();
     await renderProductPage();
   }
 

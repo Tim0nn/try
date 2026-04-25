@@ -65,14 +65,79 @@
           <h3 data-i18n="admin.manageProducts">Product Management</h3>
           <form id="product-form" class="checkout-form">
             <input type="hidden" id="prod-id">
+            <div class="admin-form-tabs" aria-label="Product form sections">
+              <button class="admin-form-tab active" type="button" data-product-form-tab="basic" data-i18n="admin.formBasic">Basic</button>
+              <button class="admin-form-tab" type="button" data-product-form-tab="media" data-i18n="admin.formMedia">Media</button>
+              <button class="admin-form-tab" type="button" data-product-form-tab="pricing" data-i18n="admin.formPricing">Pricing</button>
+              <button class="admin-form-tab" type="button" data-product-form-tab="safety" data-i18n="admin.formSafety">Safety</button>
+              <button class="admin-form-tab" type="button" data-product-form-tab="specs" data-i18n="admin.formSpecs">Specs</button>
+            </div>
+
+            <div class="admin-form-panel active" data-product-form-panel="basic">
             <div class="form-row">
               <label for="prod-name" data-i18n="admin.name">Name</label>
               <input id="prod-name" required data-i18n-placeholder="admin.name" placeholder="Product name">
             </div>
+            <div class="form-row">
+              <label for="prod-desc" data-i18n="admin.description">Description</label>
+              <textarea id="prod-desc" rows="3" data-i18n-placeholder="admin.description" placeholder="Short description"></textarea>
+            </div>
+            <div class="form-row">
+              <label for="prod-country" data-i18n="admin.country">Country</label>
+              <input id="prod-country" data-i18n-placeholder="admin.country" placeholder="e.g., USA">
+            </div>
+            <div class="form-row">
+              <label for="prod-size" data-i18n="admin.size">Size</label>
+              <input id="prod-size" data-i18n-placeholder="admin.size" placeholder="e.g., Large">
+            </div>
+            <div class="form-row">
+              <label for="prod-category" data-i18n="admin.category">Category</label>
+              <input id="prod-category" data-i18n-placeholder="admin.category" placeholder="e.g., electronics">
+            </div>
+            <div class="form-row">
+              <label for="prod-qty" data-i18n="admin.quantity">Quantity</label>
+              <input id="prod-qty" type="number" min="0" step="1" placeholder="0">
+            </div>
+            </div>
+
+            <div class="admin-form-panel" data-product-form-panel="media">
+            <div class="form-row">
+              <label for="prod-image" data-i18n="admin.imageUrl">Image URL / file</label>
+              <input id="prod-image" type="text" placeholder="https://... or drop image below">
+              <input id="prod-image-file" class="hidden" type="file" accept="image/*">
+              <button id="prod-image-drop" class="admin-upload-zone" type="button">
+                <span class="admin-upload-title" data-i18n="admin.imageDropTitle">Drop image here</span>
+                <span class="admin-upload-text" data-i18n="admin.imageDropText">or click to choose a file</span>
+              </button>
+              <div id="prod-image-preview" class="admin-image-preview hidden"></div>
+            </div>
+            <div class="form-row">
+              <label for="prod-gallery" data-i18n="admin.galleryImages">Gallery images</label>
+              <textarea id="prod-gallery" rows="2" placeholder="https://img1&#10;https://img2 or drop files below"></textarea>
+              <input id="prod-gallery-file" class="hidden" type="file" accept="image/*" multiple>
+              <button id="prod-gallery-drop" class="admin-upload-zone compact" type="button">
+                <span class="admin-upload-title" data-i18n="admin.galleryDropTitle">Drop gallery images here</span>
+                <span class="admin-upload-text" data-i18n="admin.galleryDropText">or click to add multiple files</span>
+              </button>
+              <div id="prod-gallery-preview" class="admin-gallery-preview hidden"></div>
+            </div>
+            <div class="form-row">
+              <label for="prod-model-url" data-i18n="admin.modelUrl">3D model URL (.glb)</label>
+              <input id="prod-model-url" type="url" placeholder="https://.../model.glb">
+            </div>
+            <div class="form-row checkbox-row">
+              <label class="checkbox-field" for="prod-show-3d">
+                <input id="prod-show-3d" type="checkbox">
+                <span data-i18n="admin.show3d">Show 3D model on product page</span>
+              </label>
+            </div>
+            </div>
+
+            <div class="admin-form-panel" data-product-form-panel="pricing">
             <div class="form-row pricing-base-grid">
               <div>
                 <label for="prod-price" data-i18n="admin.basePrice">Base price</label>
-                <input id="prod-price" type="number" min="0" step="0.01" required placeholder="99.99">
+                <input id="prod-price" type="number" min="0" step="0.01" placeholder="99.99">
               </div>
               <div>
                 <label for="prod-base-region" data-i18n="admin.baseRegion">Base region</label>
@@ -121,56 +186,9 @@
                 </label>
               </div>
             </div>
-            <div class="form-row">
-              <label for="prod-image" data-i18n="admin.imageUrl">Image URL / file</label>
-              <input id="prod-image" type="text" required placeholder="https://... or drop image below">
-              <input id="prod-image-file" class="hidden" type="file" accept="image/*">
-              <button id="prod-image-drop" class="admin-upload-zone" type="button">
-                <span class="admin-upload-title" data-i18n="admin.imageDropTitle">Drop image here</span>
-                <span class="admin-upload-text" data-i18n="admin.imageDropText">or click to choose a file</span>
-              </button>
-              <div id="prod-image-preview" class="admin-image-preview hidden"></div>
             </div>
-            <div class="form-row">
-              <label for="prod-gallery" data-i18n="admin.galleryImages">Gallery images</label>
-              <textarea id="prod-gallery" rows="2" placeholder="https://img1&#10;https://img2 or drop files below"></textarea>
-              <input id="prod-gallery-file" class="hidden" type="file" accept="image/*" multiple>
-              <button id="prod-gallery-drop" class="admin-upload-zone compact" type="button">
-                <span class="admin-upload-title" data-i18n="admin.galleryDropTitle">Drop gallery images here</span>
-                <span class="admin-upload-text" data-i18n="admin.galleryDropText">or click to add multiple files</span>
-              </button>
-              <div id="prod-gallery-preview" class="admin-gallery-preview hidden"></div>
-            </div>
-            <div class="form-row">
-              <label for="prod-model-url" data-i18n="admin.modelUrl">3D model URL (.glb)</label>
-              <input id="prod-model-url" type="url" placeholder="https://.../model.glb">
-            </div>
-            <div class="form-row checkbox-row">
-              <label class="checkbox-field" for="prod-show-3d">
-                <input id="prod-show-3d" type="checkbox">
-                <span data-i18n="admin.show3d">Show 3D model on product page</span>
-              </label>
-            </div>
-            <div class="form-row">
-              <label for="prod-desc" data-i18n="admin.description">Description</label>
-              <textarea id="prod-desc" rows="3" data-i18n-placeholder="admin.description" placeholder="Short description"></textarea>
-            </div>
-            <div class="form-row">
-              <label for="prod-country" data-i18n="admin.country">Country</label>
-              <input id="prod-country" data-i18n-placeholder="admin.country" placeholder="e.g., USA">
-            </div>
-            <div class="form-row">
-              <label for="prod-size" data-i18n="admin.size">Size</label>
-              <input id="prod-size" data-i18n-placeholder="admin.size" placeholder="e.g., Large">
-            </div>
-            <div class="form-row">
-              <label for="prod-category" data-i18n="admin.category">Category</label>
-              <input id="prod-category" data-i18n-placeholder="admin.category" placeholder="e.g., electronics">
-            </div>
-            <div class="form-row">
-              <label for="prod-qty" data-i18n="admin.quantity">Quantity</label>
-              <input id="prod-qty" type="number" min="0" step="1" placeholder="0">
-            </div>
+
+            <div class="admin-form-panel" data-product-form-panel="safety">
             <div class="form-row">
               <label for="prod-age-rating" data-i18n="admin.ageRating">Age rating</label>
               <input id="prod-age-rating" data-i18n-placeholder="admin.ageRatingPlaceholder" placeholder="e.g., 3+">
@@ -191,6 +209,9 @@
               <label for="prod-safety-warnings" data-i18n="admin.safetyWarnings">Safety warnings</label>
               <textarea id="prod-safety-warnings" rows="2" data-i18n-placeholder="admin.safetyWarningsPlaceholder" placeholder="Contains small parts. Adult supervision recommended."></textarea>
             </div>
+            </div>
+
+            <div class="admin-form-panel" data-product-form-panel="specs">
             <div class="form-row">
               <label for="prod-tags" data-i18n="admin.tags">Tags (comma separated)</label>
               <input id="prod-tags" data-i18n-placeholder="admin.tags" placeholder="electronics, kids, bestseller">
@@ -201,6 +222,7 @@
                 <button id="add-spec-row" class="btn ghost small-btn" type="button" data-i18n="admin.addSpec">+ Add characteristic</button>
               </div>
               <div id="prod-specs-list" class="spec-editor-list"></div>
+            </div>
             </div>
             <button type="submit" class="btn primary full" data-i18n="admin.saveProduct">Save product</button>
             <p id="prod-msg" class="muted small"></p>

@@ -84,17 +84,8 @@
         <button id="specs-scroll-btn" class="btn ghost small-btn specs-scroll-btn hidden" type="button" data-i18n="product.specsButton">Characteristics</button>
         <div class="color-row" id="color-row"></div>
         <div class="safety-row hidden" id="product-safety-row"></div>
-        <div class="spec-grid" id="spec-grid"></div>
-        <div class="description" id="product-desc"></div>
-        <section class="product-safety-block hidden" id="product-safety-block">
-          <div class="section-header">
-            <div>
-              <h3 data-i18n="product.safetyTitle">Safety & care</h3>
-              <p class="muted" data-i18n="product.safetySubtitle">Age guidance, materials and important usage notes.</p>
-            </div>
-          </div>
-          <div class="product-safety-grid" id="product-safety-grid"></div>
-        </section>
+        <div class="spec-grid product-quick-specs" id="spec-grid"></div>
+        <div class="description product-quick-description" id="product-desc"></div>
       </div>
 
       <aside class="product-purchase">
@@ -110,6 +101,35 @@
         </div>
       </aside>
     </div>
+
+    <section id="product-detail-tabs" class="product-detail-tabs">
+      <div class="product-tab-list" role="tablist" aria-label="Product details">
+        <button class="product-tab active" type="button" data-product-tab="description" data-i18n="product.tabDescription">Description</button>
+        <button class="product-tab" type="button" data-product-tab="details" data-i18n="product.tabDetails">Details</button>
+        <button class="product-tab" type="button" data-product-tab="safety" data-i18n="product.tabSafety">Safety</button>
+        <button class="product-tab" type="button" data-product-tab="reviews" data-i18n="product.tabReviews">Reviews</button>
+      </div>
+      <div class="product-tab-panel active" data-product-tab-panel="description">
+        <div id="product-tab-description" class="product-tab-copy"></div>
+      </div>
+      <div class="product-tab-panel" data-product-tab-panel="details">
+        <div id="product-tab-details" class="product-safety-grid"></div>
+      </div>
+      <div class="product-tab-panel" data-product-tab-panel="safety">
+        <div id="product-safety-block" class="product-safety-block hidden">
+          <div class="section-header">
+            <div>
+              <h3 data-i18n="product.safetyTitle">Safety & care</h3>
+              <p class="muted" data-i18n="product.safetySubtitle">Age guidance, materials and important usage notes.</p>
+            </div>
+          </div>
+          <div class="product-safety-grid" id="product-safety-grid"></div>
+        </div>
+      </div>
+      <div class="product-tab-panel" data-product-tab-panel="reviews">
+        <div id="product-reviews-slot"></div>
+      </div>
+    </section>
 
     <section id="product-reviews-section" class="product-reviews-section hidden">
       <div class="section-header">
