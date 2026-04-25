@@ -2760,15 +2760,21 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
   const computeItemsPerView = () => {
     const w = windowEl?.clientWidth || window.innerWidth;
     const gap = getTrackGap();
+    if (!w) {
+      requestAnimationFrame(computeItemsPerView);
+      return;
+    }
     if (w >= 1440) itemsPerView = 5;
     else if (w >= 1120) itemsPerView = 4;
     else if (w >= 780) itemsPerView = 3;
     else if (w >= 320) itemsPerView = 2;
     else itemsPerView = 1;
 
+    const cardWidth = Math.max(0, (w - (itemsPerView - 1) * gap) / itemsPerView);
     getCards().forEach((card) => {
-      card.style.flex = `0 0 calc((100% - ${(itemsPerView - 1) * gap}px) / ${itemsPerView})`;
-      card.style.maxWidth = `calc((100% - ${(itemsPerView - 1) * gap}px) / ${itemsPerView})`;
+      card.style.flex = `0 0 ${cardWidth}px`;
+      card.style.width = `${cardWidth}px`;
+      card.style.maxWidth = `${cardWidth}px`;
     });
     buildDots();
     clampPage();
@@ -2860,6 +2866,9 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
   windowEl?.addEventListener('touchcancel', handleTouchCancel, { passive: true });
   track.addEventListener('click', handleTrackClickCapture, true);
   window.addEventListener('resize', handleResize);
+  track.querySelectorAll('img').forEach((img) => {
+    if (!img.complete) img.addEventListener('load', handleResize, { once: true });
+  });
 
   computeItemsPerView();
   resetTimer();
@@ -2872,6 +2881,7 @@ const mountProductCarousel = ({ items, track, dotsWrap, left, right }) => {
     windowEl?.removeEventListener('touchend', handleTouchEnd);
     windowEl?.removeEventListener('touchcancel', handleTouchCancel);
     track.removeEventListener('click', handleTrackClickCapture, true);
+    track.querySelectorAll('img').forEach((img) => img.removeEventListener('load', handleResize));
   };
 };
 

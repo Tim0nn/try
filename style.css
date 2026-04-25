@@ -999,7 +999,7 @@ body[data-page="products"] #products-grid .card {
 }
 
 body[data-page="products"] #products-grid .card img {
-  max-height: 180px;
+  max-height: none;
 }
 
 body[data-page="products"] #products-grid .card h3 {
@@ -1653,16 +1653,23 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 }
 
 .card-media {
-  display: block;
+  display: grid;
+  place-items: center;
   position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  background: transparent;
+  flex: 0 0 auto;
 }
 
 .card img {
   width: 100%;
-  height: auto;
-  max-height: 220px;
+  height: 100%;
+  max-height: none;
   object-fit: contain;
-  border-radius: 14px;
+  border-radius: inherit;
   background: transparent;
   transition: transform 180ms ease;
 }
@@ -1943,6 +1950,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
 
 .carousel-track {
   display: flex;
+  align-items: stretch;
   gap: var(--carousel-gap, 16px);
   transition: transform 650ms ease;
   will-change: transform;
@@ -1981,6 +1989,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   flex: 0 0 calc((100% - 48px) / 4);
   min-width: 0;
   width: auto;
+  height: auto;
   align-self: stretch;
 }
 
@@ -3498,7 +3507,6 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   }
 
   .card img {
-    max-height: 132px;
     border-radius: 12px;
   }
 
@@ -3639,7 +3647,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   }
 
   body[data-page="products"] #products-grid .card img {
-    max-height: 140px;
+    max-height: none;
   }
 }
 
@@ -3741,7 +3749,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   }
 
   .card img {
-    max-height: 138px;
+    max-height: none;
   }
 
   .card h3 {
@@ -3803,7 +3811,7 @@ body[data-page="products"] #products-grid .card .card-actions .btn {
   }
 
   .card img {
-    max-height: 128px;
+    max-height: none;
   }
 
   .collection-card h3,
