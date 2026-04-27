@@ -1,8 +1,285 @@
-// Supabase client setup (UMD build already loaded)
+﻿// Supabase client setup. Uses the official client when available and a small
+// REST/Auth fallback when CDN scripts are blocked.
 const supabaseUrl = 'https://zyaadswbpfnnbnzucinl.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5YWFkc3dicGZubmJuenVjaW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDgzNzIsImV4cCI6MjA4OTE4NDM3Mn0.vqop1nUIUDUWzlerYkfE3t6qnBs9TeQLL3VXsTQXWLQ';
 
-const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+const SUPABASE_AUTH_STORAGE_KEY = 'dragon-supabase-session';
+const SUPABASE_PROXY_PRODUCTS_URL = '/api/products';
+const SUPABASE_TEMPORARY_UNAVAILABLE = 'Products temporarily unavailable. Please try again.';
+
+const logSupabaseResult = (data, error) => {
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
+};
+
+const getStoredSession = () => {
+  try {
+    const direct = JSON.parse(window.localStorage.getItem(SUPABASE_AUTH_STORAGE_KEY) || 'null');
+    if (direct?.access_token) return direct;
+    const legacy = JSON.parse(window.localStorage.getItem('sb-zyaadswbpfnnbnzucinl-auth-token') || 'null');
+    return normalizeAuthSession(legacy);
+  } catch {
+    return null;
+  }
+};
+
+const setStoredSession = (session) => {
+  try {
+    if (session) window.localStorage.setItem(SUPABASE_AUTH_STORAGE_KEY, JSON.stringify(session));
+    else window.localStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY);
+  } catch {}
+};
+
+const normalizeAuthSession = (raw) => {
+  if (!raw) return null;
+  const expiresIn = Number(raw.expires_in) || 3600;
+  return {
+    access_token: raw.access_token || raw.session?.access_token || '',
+    refresh_token: raw.refresh_token || raw.session?.refresh_token || '',
+    expires_at: raw.expires_at || Math.floor(Date.now() / 1000) + expiresIn,
+    user: raw.user || raw.session?.user || null
+  };
+};
+
+const createFallbackSupabaseClient = (url, key) => {
+  const baseHeaders = {
+    apikey: key,
+    'Content-Type': 'application/json'
+  };
+  const getAuthorizationHeader = () => {
+    const session = getStoredSession();
+    return session?.access_token ? `Bearer ${session.access_token}` : `Bearer ${key}`;
+  };
+  const requestJson = async (endpoint, options = {}) => {
+    const response = await fetch(`${url}${endpoint}`, {
+      ...options,
+      headers: {
+        ...baseHeaders,
+        Authorization: getAuthorizationHeader(),
+        ...(options.headers || {})
+      }
+    });
+    const text = await response.text();
+    let body = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+    }
+    if (!response.ok) {
+      const message = body?.message || body?.error_description || body?.error || response.statusText || 'Supabase request failed';
+      return { data: null, error: { message, status: response.status, details: body } };
+    }
+    return { data: body, error: null };
+  };
+  const encodeFilterValue = (value) => encodeURIComponent(String(value));
+
+  class RestQuery {
+    constructor(table) {
+      this.table = table;
+      this.method = 'GET';
+      this.body = undefined;
+      this.selectColumns = '*';
+      this.filters = [];
+      this.orders = [];
+      this.singleMode = null;
+      this.onConflict = '';
+      this.upsertMode = false;
+    }
+    select(columns = '*') {
+      this.selectColumns = columns || '*';
+      return this;
+    }
+    order(column, options = {}) {
+      this.orders.push(`${column}.${options.ascending === false ? 'desc' : 'asc'}`);
+      return this;
+    }
+    eq(column, value) {
+      this.filters.push([column, `eq.${encodeFilterValue(value)}`]);
+      return this;
+    }
+    in(column, values = []) {
+      const encoded = (Array.isArray(values) ? values : []).map((value) => String(value).replace(/"/g, '\\"')).join(',');
+      this.filters.push([column, `in.(${encoded})`]);
+      return this;
+    }
+    maybeSingle() {
+      this.singleMode = 'maybe';
+      return this;
+    }
+    single() {
+      this.singleMode = 'single';
+      return this;
+    }
+    insert(rows) {
+      this.method = 'POST';
+      this.body = rows;
+      return this;
+    }
+    update(patch) {
+      this.method = 'PATCH';
+      this.body = patch;
+      return this;
+    }
+    delete() {
+      this.method = 'DELETE';
+      return this;
+    }
+    upsert(payload, options = {}) {
+      this.method = 'POST';
+      this.body = payload;
+      this.onConflict = options.onConflict || '';
+      this.upsertMode = true;
+      return this;
+    }
+    buildEndpoint() {
+      const params = new URLSearchParams();
+      params.set('select', this.selectColumns || '*');
+      this.filters.forEach(([column, filter]) => params.append(column, filter));
+      if (this.orders.length) params.set('order', this.orders.join(','));
+      if (this.onConflict) params.set('on_conflict', this.onConflict);
+      return `/rest/v1/${this.table}?${params.toString()}`;
+    }
+    async execute() {
+      const headers = { Prefer: this.upsertMode ? 'resolution=merge-duplicates,return=representation' : 'return=representation' };
+      const result = await requestJson(this.buildEndpoint(), {
+        method: this.method,
+        headers,
+        body: this.body === undefined ? undefined : JSON.stringify(this.body)
+      });
+      if (result.error) return result;
+      let data = result.data;
+      if (this.singleMode) {
+        if (Array.isArray(data)) data = data[0] || null;
+        if (this.singleMode === 'single' && !data) return { data: null, error: { message: 'No rows returned', status: 406 } };
+      }
+      return { data, error: null };
+    }
+    then(resolve, reject) {
+      return this.execute().then(resolve, reject);
+    }
+  }
+
+  const auth = {
+    async getUser() {
+      let session = getStoredSession();
+      if (!session?.access_token) return { data: { user: null }, error: null };
+      if (session.expires_at && session.expires_at < Math.floor(Date.now() / 1000) + 30 && session.refresh_token) {
+        const refreshed = await this.refreshSession();
+        if (!refreshed.error) session = getStoredSession();
+      }
+      const result = await requestJson('/auth/v1/user', { method: 'GET' });
+      if (result.error) {
+        console.warn('Auth error:', result.error);
+        return { data: { user: null }, error: result.error };
+      }
+      session = { ...session, user: result.data };
+      setStoredSession(session);
+      return { data: { user: result.data }, error: null };
+    },
+    async refreshSession() {
+      const session = getStoredSession();
+      if (!session?.refresh_token) return { data: { session: null }, error: null };
+      const result = await requestJson('/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: session.refresh_token })
+      });
+      if (result.error) {
+        console.warn('Auth error:', result.error);
+        setStoredSession(null);
+        return { data: { session: null }, error: result.error };
+      }
+      const nextSession = normalizeAuthSession(result.data);
+      setStoredSession(nextSession);
+      return { data: { session: nextSession, user: nextSession?.user || null }, error: null };
+    },
+    async signUp({ email, password, options = {} }) {
+      const result = await requestJson('/auth/v1/signup', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, data: options.data || {} })
+      });
+      if (result.error) return { data: null, error: result.error };
+      const session = normalizeAuthSession(result.data);
+      if (session?.access_token) setStoredSession(session);
+      return { data: { ...result.data, session, user: result.data?.user || session?.user || null }, error: null };
+    },
+    async signInWithPassword({ email, password }) {
+      const result = await requestJson('/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      if (result.error) return { data: null, error: result.error };
+      const session = normalizeAuthSession(result.data);
+      setStoredSession(session);
+      return { data: { ...result.data, session, user: result.data?.user || session?.user || null }, error: null };
+    },
+    async signOut() {
+      const session = getStoredSession();
+      const result = session?.access_token ? await requestJson('/auth/v1/logout', { method: 'POST' }) : { data: null, error: null };
+      setStoredSession(null);
+      return result.error ? { error: result.error } : { error: null };
+    },
+    onAuthStateChange(callback) {
+      callback?.('INITIAL_SESSION', { user: getStoredSession()?.user || null });
+      return { data: { subscription: { unsubscribe() {} } } };
+    }
+  };
+
+  return {
+    from(table) {
+      return new RestQuery(table);
+    },
+    auth,
+    functions: {
+      async invoke(name, { body } = {}) {
+        return requestJson(`/functions/v1/${name}`, {
+          method: 'POST',
+          body: JSON.stringify(body || {})
+        });
+      }
+    },
+    channel() {
+      return {
+        on() {
+          return this;
+        },
+        subscribe() {
+          return this;
+        }
+      };
+    },
+    async removeChannel() {}
+  };
+};
+
+const createSupabaseClient = () => {
+  const options = {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage
+    }
+  };
+  if (window.supabase?.createClient) return window.supabase.createClient(supabaseUrl, supabaseKey, options);
+  console.warn('Supabase JS library was not loaded. Using REST fallback client.');
+  return createFallbackSupabaseClient(supabaseUrl, supabaseKey);
+};
+
+const supabaseClient = createSupabaseClient();
+
+const safeGetAuthUser = async () => {
+  if (!supabaseClient?.auth?.getUser) return null;
+  const { data, error } = await supabaseClient.auth.getUser();
+  logSupabaseResult(data, error);
+  if (error) {
+    console.warn('Auth error:', error);
+    return null;
+  }
+  return data?.user || null;
+};
 
 const toDbId = (id) => {
   const raw = id === undefined || id === null ? '' : String(id).trim();
@@ -109,10 +386,20 @@ const mapProduct = (p) => {
 };
 
 async function fetchProductsDb() {
+  try {
+    const proxyResponse = await fetch(SUPABASE_PROXY_PRODUCTS_URL, { headers: { Accept: 'application/json' } });
+    if (proxyResponse.ok) {
+      const proxyData = await proxyResponse.json();
+      const rows = Array.isArray(proxyData) ? proxyData : proxyData?.products || proxyData?.data || [];
+      logSupabaseResult(rows, null);
+      return rows.map(mapProduct);
+    }
+  } catch (proxyError) {
+    console.warn('Products proxy unavailable, falling back to Supabase:', proxyError);
+  }
   const { data, error } = await supabaseClient.from('products').select('*').order('id', { ascending: true });
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
-  if (error) throw error;
+  logSupabaseResult(data, error);
+  if (error) throw new Error(SUPABASE_TEMPORARY_UNAVAILABLE);
   return (data || []).map(mapProduct);
 }
 
@@ -125,10 +412,21 @@ async function fetchProductsByIdsDb(ids = []) {
     )
   );
   if (!normalizedIds.length) return [];
+  try {
+    const params = new URLSearchParams({ ids: normalizedIds.map(String).join(',') });
+    const proxyResponse = await fetch(`${SUPABASE_PROXY_PRODUCTS_URL}?${params.toString()}`, { headers: { Accept: 'application/json' } });
+    if (proxyResponse.ok) {
+      const proxyData = await proxyResponse.json();
+      const rows = Array.isArray(proxyData) ? proxyData : proxyData?.products || proxyData?.data || [];
+      logSupabaseResult(rows, null);
+      return rows.map(mapProduct);
+    }
+  } catch (proxyError) {
+    console.warn('Products proxy unavailable, falling back to Supabase:', proxyError);
+  }
   const { data, error } = await supabaseClient.from('products').select('*').in('id', normalizedIds);
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
-  if (error) throw error;
+  logSupabaseResult(data, error);
+  if (error) throw new Error(SUPABASE_TEMPORARY_UNAVAILABLE);
   return (data || []).map(mapProduct);
 }
 
@@ -178,8 +476,8 @@ async function fetchOrdersDb(filters = {}) {
   let query = supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
   if (filters.user_email) query = query.eq('user_email', filters.user_email);
   const { data, error } = await query;
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapOrder);
 }
@@ -187,13 +485,13 @@ async function fetchOrdersDb(filters = {}) {
 async function insertOrderDb(order) {
   let payload = { ...order };
   let result = await supabaseClient.from('orders').insert([payload]).select('*');
-  console.log('DATA:', result.data);
-  console.log('ERROR:', result.error);
+  console.log('SUPABASE RESPONSE:', result.data);
+  console.log('SUPABASE ERROR:', result.error);
   if (result.error && /payment_status/i.test(String(result.error.message || ''))) {
     const { payment_status, ...fallbackPayload } = payload;
     result = await supabaseClient.from('orders').insert([fallbackPayload]).select('*');
-    console.log('DATA:', result.data);
-    console.log('ERROR:', result.error);
+    console.log('SUPABASE RESPONSE:', result.data);
+    console.log('SUPABASE ERROR:', result.error);
   }
   if (result.error) throw result.error;
   return (result.data || []).map(mapOrder);
@@ -201,8 +499,8 @@ async function insertOrderDb(order) {
 
 async function updateOrderStatusDb(id, status) {
   const { data, error } = await supabaseClient.from('orders').update({ status }).eq('id', id).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapOrder);
 }
@@ -215,13 +513,13 @@ async function updateOrderPaymentDb(id, patch = {}) {
   };
   const cleanPatch = Object.fromEntries(Object.entries(basePatch).filter(([, value]) => value !== undefined));
   let result = await supabaseClient.from('orders').update(cleanPatch).eq('id', id).select('*');
-  console.log('DATA:', result.data);
-  console.log('ERROR:', result.error);
+  console.log('SUPABASE RESPONSE:', result.data);
+  console.log('SUPABASE ERROR:', result.error);
   if (result.error && /payment_status/i.test(String(result.error.message || ''))) {
     const { payment_status, ...fallbackPatch } = cleanPatch;
     result = await supabaseClient.from('orders').update(fallbackPatch).eq('id', id).select('*');
-    console.log('DATA:', result.data);
-    console.log('ERROR:', result.error);
+    console.log('SUPABASE RESPONSE:', result.data);
+    console.log('SUPABASE ERROR:', result.error);
   }
   if (result.error) throw result.error;
   return (result.data || []).map(mapOrder);
@@ -229,8 +527,8 @@ async function updateOrderPaymentDb(id, patch = {}) {
 
 async function invokePaymentFunction(name, payload = {}) {
   const { data, error } = await supabaseClient.functions.invoke(name, { body: payload });
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return data || null;
 }
@@ -249,8 +547,8 @@ async function secureCheckoutDb(payload = {}) {
 
 async function fetchSupportMessagesDb() {
   const { data, error } = await supabaseClient.from('support_messages').select('*').order('created_at', { ascending: false });
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapSupportMessage);
 }
@@ -271,26 +569,22 @@ async function insertSupportMessageDb(payload) {
     row.product_id = /^-?\d+$/.test(productIdText) ? Number(productIdText) : productIdText;
   }
   const { data, error } = await supabaseClient.from('support_messages').insert([row]).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapSupportMessage);
 }
 
 async function updateSupportMessageDb(id, patch) {
   const { data, error } = await supabaseClient.from('support_messages').update(patch).eq('id', id).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapSupportMessage);
 }
 
 async function fetchFavoritesDb() {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-  console.log('DATA:', authData);
-  console.log('ERROR:', authError);
-  if (authError) throw authError;
-  const user = authData?.user || null;
+  const user = await safeGetAuthUser();
   if (!user) return [];
 
   const { data, error } = await supabaseClient
@@ -298,18 +592,14 @@ async function fetchFavoritesDb() {
     .select('product_id, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map((row) => String(row.product_id)).filter(Boolean);
 }
 
 async function addFavoriteDb(productId) {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-  console.log('DATA:', authData);
-  console.log('ERROR:', authError);
-  if (authError) throw authError;
-  const user = authData?.user || null;
+  const user = await safeGetAuthUser();
   if (!user) throw new Error('Authenticated user required for favorites');
 
   const payload = {
@@ -321,18 +611,14 @@ async function addFavoriteDb(productId) {
     .from('user_favorites')
     .upsert(payload, { onConflict: 'user_id,product_id' })
     .select('product_id');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map((row) => String(row.product_id)).filter(Boolean);
 }
 
 async function removeFavoriteDb(productId) {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-  console.log('DATA:', authData);
-  console.log('ERROR:', authError);
-  if (authError) throw authError;
-  const user = authData?.user || null;
+  const user = await safeGetAuthUser();
   if (!user) throw new Error('Authenticated user required for favorites');
 
   const { data, error } = await supabaseClient
@@ -341,8 +627,8 @@ async function removeFavoriteDb(productId) {
     .eq('user_id', user.id)
     .eq('product_id', String(productId || '').trim())
     .select('product_id');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return true;
 }
@@ -353,18 +639,14 @@ async function fetchReviewsDb(filters = {}) {
   if (filters.status) query = query.eq('status', filters.status);
   if (filters.user_id) query = query.eq('user_id', filters.user_id);
   const { data, error } = await query;
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapReview);
 }
 
 async function upsertReviewDb(payload = {}) {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-  console.log('DATA:', authData);
-  console.log('ERROR:', authError);
-  if (authError) throw authError;
-  const user = authData?.user || null;
+  const user = await safeGetAuthUser();
   if (!user) throw new Error('Authenticated user required for review');
 
   const productId = String(payload.product_id || '').trim();
@@ -392,14 +674,14 @@ async function upsertReviewDb(payload = {}) {
     .eq('user_id', user.id)
     .eq('product_id', productId)
     .maybeSingle();
-  console.log('DATA:', existing);
-  console.log('ERROR:', existingError);
+  console.log('SUPABASE RESPONSE:', existing);
+  console.log('SUPABASE ERROR:', existingError);
   if (existingError) throw existingError;
 
   if (existing?.id) {
     const { data, error } = await supabaseClient.from('product_reviews').update(basePatch).eq('id', existing.id).select('*');
-    console.log('DATA:', data);
-    console.log('ERROR:', error);
+    console.log('SUPABASE RESPONSE:', data);
+    console.log('SUPABASE ERROR:', error);
     if (error) throw error;
     return (data || []).map(mapReview);
   }
@@ -409,8 +691,8 @@ async function upsertReviewDb(payload = {}) {
     created_at: new Date().toISOString()
   };
   const { data, error } = await supabaseClient.from('product_reviews').insert([insertPayload]).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapReview);
 }
@@ -421,16 +703,16 @@ async function updateReviewDb(id, patch = {}) {
     updated_at: new Date().toISOString()
   };
   const { data, error } = await supabaseClient.from('product_reviews').update(payload).eq('id', id).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapReview);
 }
 
 async function deleteReviewDb(id) {
   const { data, error } = await supabaseClient.from('product_reviews').delete().eq('id', id).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapReview);
 }
@@ -443,8 +725,8 @@ async function recalculateProductRatingDb(productId) {
     .select('rating')
     .eq('product_id', normalizedId)
     .eq('status', 'approved');
-  console.log('DATA:', reviews);
-  console.log('ERROR:', reviewsError);
+  console.log('SUPABASE RESPONSE:', reviews);
+  console.log('SUPABASE ERROR:', reviewsError);
   if (reviewsError) throw reviewsError;
 
   const rows = Array.isArray(reviews) ? reviews : [];
@@ -456,8 +738,8 @@ async function recalculateProductRatingDb(productId) {
     .update({ rating, reviews_count: reviewsCount })
     .eq('id', toDbId(normalizedId))
     .select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return (data || []).map(mapProduct)?.[0] || null;
 }
@@ -469,8 +751,8 @@ async function reserveProductQuantitiesDb(items = []) {
 
   const dbIds = ids.map(toDbId);
   const { data: rows, error } = await supabaseClient.from('products').select('id, quantity').in('id', dbIds);
-  console.log('DATA:', rows);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', rows);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
 
   const stockMap = new Map((rows || []).map((row) => [String(row.id), Number(row.quantity) || 0]));
@@ -498,8 +780,8 @@ async function reserveProductQuantitiesDb(items = []) {
         .eq('id', dbId)
         .eq('quantity', current)
         .select('id, quantity');
-      console.log('DATA:', updated);
-      console.log('ERROR:', updateError);
+      console.log('SUPABASE RESPONSE:', updated);
+      console.log('SUPABASE ERROR:', updateError);
       if (updateError) throw updateError;
       if (!updated || !updated.length) {
         throw new Error(`Stock update conflict for product ${id}. Please retry checkout.`);
@@ -521,11 +803,11 @@ async function reserveProductQuantitiesDb(items = []) {
           .update({ quantity: row.previousQuantity })
           .eq('id', row.dbId)
           .select('id, quantity');
-        console.log('DATA:', rollbackData);
-        console.log('ERROR:', rollbackError);
+        console.log('SUPABASE RESPONSE:', rollbackData);
+        console.log('SUPABASE ERROR:', rollbackError);
       } catch (rollbackCrash) {
-        console.log('DATA:', null);
-        console.log('ERROR:', rollbackCrash);
+        console.log('SUPABASE RESPONSE:', null);
+        console.log('SUPABASE ERROR:', rollbackCrash);
       }
     }
     throw reserveError;
@@ -544,8 +826,8 @@ async function restoreProductQuantitiesDb(reservations = []) {
       .update({ quantity: previousQuantity })
       .eq('id', dbId)
       .select('id, quantity');
-    console.log('DATA:', data);
-    console.log('ERROR:', error);
+    console.log('SUPABASE RESPONSE:', data);
+    console.log('SUPABASE ERROR:', error);
     if (error) throw error;
     restored.push(...(data || []));
   }
@@ -554,16 +836,16 @@ async function restoreProductQuantitiesDb(reservations = []) {
 
 async function upsertProductDb(prod) {
   const { data, error } = await supabaseClient.from('products').upsert(prod).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return data;
 }
 
 async function deleteProductDb(id) {
   const { data, error } = await supabaseClient.from('products').delete().eq('id', id).select('*');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return data;
 }
@@ -582,8 +864,8 @@ async function signUpAuth(email, password, metadata = {}) {
       data: signupMeta
     }
   });
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return data;
 }
@@ -593,63 +875,47 @@ async function signInAuth(email, password) {
     email,
     password
   });
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return data;
 }
 
 async function signOutAuth() {
   const { error } = await supabaseClient.auth.signOut();
-  console.log('DATA:', null);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', null);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
 }
 
 async function getAuthUser() {
-  const { data, error } = await supabaseClient.auth.getUser();
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
-  if (error) throw error;
-  return data?.user || null;
+  return safeGetAuthUser();
 }
 
 async function getUserRoleDb() {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-  console.log('DATA:', authData);
-  console.log('ERROR:', authError);
-  if (authError) throw authError;
-  const user = authData?.user || null;
+  const user = await safeGetAuthUser();
   if (!user) return null;
 
   const { data, error } = await supabaseClient.from('users').select('role').eq('id', user.id).maybeSingle();
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return data?.role || null;
 }
 
 async function fetchCartDb() {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-  console.log('DATA:', authData);
-  console.log('ERROR:', authError);
-  if (authError) throw authError;
-  const user = authData?.user || null;
+  const user = await safeGetAuthUser();
   if (!user) return [];
 
   const { data, error } = await supabaseClient.from('user_carts').select('items').eq('user_id', user.id).maybeSingle();
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return Array.isArray(data?.items) ? data.items : [];
 }
 
 async function upsertCartDb(items = []) {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-  console.log('DATA:', authData);
-  console.log('ERROR:', authError);
-  if (authError) throw authError;
-  const user = authData?.user || null;
+  const user = await safeGetAuthUser();
   if (!user) throw new Error('Authenticated user required for cart sync');
 
   const payload = {
@@ -658,8 +924,8 @@ async function upsertCartDb(items = []) {
     updated_at: new Date().toISOString()
   };
   const { data, error } = await supabaseClient.from('user_carts').upsert(payload).select('items');
-  console.log('DATA:', data);
-  console.log('ERROR:', error);
+  console.log('SUPABASE RESPONSE:', data);
+  console.log('SUPABASE ERROR:', error);
   if (error) throw error;
   return Array.isArray(data?.[0]?.items) ? data[0].items : payload.items;
 }
@@ -731,3 +997,4 @@ window.db = {
   offCartChangeDb,
   onAuthChange
 };
+

@@ -33,6 +33,7 @@ let cartRenderToken = 0;
 let cartRealtimeSubscription = null;
 let favoritesCache = [];
 let favoritesSyncPromise = null;
+let productLoadError = '';
 
 const I18N = {
   en: {
@@ -1579,6 +1580,7 @@ const initAuth = async () => {
 };
 
 const loadProducts = async () => {
+  productLoadError = '';
   try {
     if (window.db?.fetchProductsDb) {
       const remote = await window.db.fetchProductsDb();
@@ -1588,6 +1590,7 @@ const loadProducts = async () => {
     }
   } catch (e) {
     console.error('Supabase load failed', e);
+    productLoadError = e?.message || 'Products temporarily unavailable. Please try again.';
   }
   products = [];
   return [];
@@ -3174,6 +3177,18 @@ const renderCollectionGrid = () => {
   grid.dataset.view = state.viewMode;
   grid.innerHTML = '';
   if (!state.filtered.length) {
+    const title = empty.querySelector('h3');
+    const text = empty.querySelector('p');
+    const reset = document.getElementById('empty-reset');
+    if (productLoadError) {
+      if (title) title.textContent = 'Products temporarily unavailable';
+      if (text) text.textContent = 'Products temporarily unavailable. Please try again.';
+      if (reset) reset.classList.add('hidden');
+    } else {
+      if (title) title.textContent = t('products.emptyTitle');
+      if (text) text.textContent = t('products.emptyText');
+      if (reset) reset.classList.remove('hidden');
+    }
     empty.classList.remove('hidden');
     return;
   }
@@ -3607,13 +3622,13 @@ const renderProductReviewsSection = async (product) => {
         comment,
         status: 'pending'
       });
-      console.log('DATA:', data);
-      console.log('ERROR:', null);
+      console.log('SUPABASE RESPONSE:', data);
+      console.log('SUPABASE ERROR:', null);
       if (formMessage) formMessage.textContent = t('product.reviewSubmitted');
       await renderProductReviewsSection(product);
     } catch (error) {
-      console.log('DATA:', null);
-      console.log('ERROR:', error);
+      console.log('SUPABASE RESPONSE:', null);
+      console.log('SUPABASE ERROR:', error);
       if (formMessage) formMessage.textContent = error?.message || 'Review error';
     }
   });
@@ -3629,10 +3644,10 @@ const renderProductPage = async () => {
     return;
   }
   try {
-    if (window.db?.supabaseClient) {
-      const { data, error } = await window.db.supabaseClient.from('products').select('*').eq('id', productId).single();
-      if (error || !data) throw error || new Error('Not found');
-      const p = mapProduct(data);
+    if (window.db?.fetchProductsByIdsDb) {
+      const rows = await window.db.fetchProductsByIdsDb([productId]);
+      const p = rows?.[0];
+      if (!p) throw new Error('Not found');
       const existingIndex = products.findIndex((item) => idsEqual(item.id, p.id));
       if (existingIndex >= 0) products[existingIndex] = p;
       else products.push(p);
@@ -4155,8 +4170,8 @@ const renderCheckout = async () => {
           pricing_region: currentPricingRegion,
           currency: currentCurrency
         });
-        console.log('DATA:', orderData);
-        console.log('ERROR:', null);
+        console.log('SUPABASE RESPONSE:', orderData);
+        console.log('SUPABASE ERROR:', null);
         const paid = orderData?.paid === true || String(orderData?.payment_status || '').toLowerCase() === 'paid';
         const orderCreated = orderData?.order_created === true || Boolean(orderData?.order?.id || orderData?.order_id);
         if (!orderCreated) {
@@ -4177,8 +4192,8 @@ const renderCheckout = async () => {
         orders = await loadOrders(isAdmin() ? {} : { user_email: user.email });
         products = await loadProducts();
       } catch (error) {
-        console.log('DATA:', null);
-        console.log('ERROR:', error);
+        console.log('SUPABASE RESPONSE:', null);
+        console.log('SUPABASE ERROR:', error);
         console.error(error);
         setFeedback(error?.message || t('checkout.paymentFailed'), 'error');
         showToast(error?.message || 'Checkout failed');
@@ -4963,8 +4978,8 @@ const handleAdminPage = async () => {
             .update(payload)
             .eq('id', editId)
             .select('id');
-          console.log('DATA:', data);
-          console.log('ERROR:', error);
+          console.log('SUPABASE RESPONSE:', data);
+          console.log('SUPABASE ERROR:', error);
           if (error) throw error;
           if (!data || !data.length) {
             throw new Error('No rows updated. Check product id or Supabase RLS policy for UPDATE.');
@@ -4975,8 +4990,8 @@ const handleAdminPage = async () => {
             .from('products')
             .insert(payload)
             .select('id');
-          console.log('DATA:', data);
-          console.log('ERROR:', error);
+          console.log('SUPABASE RESPONSE:', data);
+          console.log('SUPABASE ERROR:', error);
           if (error) throw error;
           if (!data || !data.length) {
             throw new Error('No rows inserted. Check Supabase RLS policy for INSERT.');
@@ -5065,13 +5080,13 @@ const handleAdminPage = async () => {
     (async () => {
       try {
         const data = window.db?.updateOrderStatusDb ? await window.db.updateOrderStatusDb(orderId, nextStatus) : [];
-        console.log('DATA:', data);
-        console.log('ERROR:', null);
+        console.log('SUPABASE RESPONSE:', data);
+        console.log('SUPABASE ERROR:', null);
         orders = await loadOrders();
         renderAdminOrders();
       } catch (error) {
-        console.log('DATA:', null);
-        console.log('ERROR:', error);
+        console.log('SUPABASE RESPONSE:', null);
+        console.log('SUPABASE ERROR:', error);
         console.error(error);
       }
     })();
@@ -5092,8 +5107,8 @@ const handleAdminPage = async () => {
         renderAdminQuestions();
         showToast(t('admin.savedAnswer'));
       } catch (error) {
-        console.log('DATA:', null);
-        console.log('ERROR:', error);
+        console.log('SUPABASE RESPONSE:', null);
+        console.log('SUPABASE ERROR:', error);
         console.error(error);
       }
     })();
@@ -5127,8 +5142,8 @@ const handleAdminPage = async () => {
         reviews = await loadAllReviews();
         renderAdminReviews();
       } catch (error) {
-        console.log('DATA:', null);
-        console.log('ERROR:', error);
+        console.log('SUPABASE RESPONSE:', null);
+        console.log('SUPABASE ERROR:', error);
         console.error(error);
       }
     })();
@@ -5247,8 +5262,8 @@ const handleRegister = () => {
     try {
       const fullName = email.includes('@') ? email.split('@')[0] : email;
       const data = window.db?.signUpAuth ? await window.db.signUpAuth(email, password, { full_name: fullName }) : null;
-      console.log('DATA:', data);
-      console.log('ERROR:', null);
+      console.log('SUPABASE RESPONSE:', data);
+      console.log('SUPABASE ERROR:', null);
       const needsEmailConfirmation = !data?.session;
       err.textContent = needsEmailConfirmation ? t('auth.confirmEmailNotice') : '';
       if (needsEmailConfirmation) {
@@ -5259,8 +5274,8 @@ const handleRegister = () => {
         window.location.href = 'login.html?registered=1';
       }
     } catch (error) {
-      console.log('DATA:', null);
-      console.log('ERROR:', error);
+      console.log('SUPABASE RESPONSE:', null);
+      console.log('SUPABASE ERROR:', error);
       const msg = String(error?.message || '');
       if (/database error saving new user/i.test(msg)) {
         err.textContent = t('auth.databaseSaveError');
@@ -5286,8 +5301,8 @@ const handleLogin = () => {
     const password = document.getElementById('login-password').value;
     try {
       const data = window.db?.signInAuth ? await window.db.signInAuth(email, password) : null;
-      console.log('DATA:', data);
-      console.log('ERROR:', null);
+      console.log('SUPABASE RESPONSE:', data);
+      console.log('SUPABASE ERROR:', null);
       const user = data?.user || data?.session?.user || null;
       if (!user) {
         err.textContent = t('auth.invalidCredentials');
@@ -5299,8 +5314,8 @@ const handleLogin = () => {
       const redirect = params.get('redirect') || 'index.html';
       window.location.href = redirect;
     } catch (error) {
-      console.log('DATA:', null);
-      console.log('ERROR:', error);
+      console.log('SUPABASE RESPONSE:', null);
+      console.log('SUPABASE ERROR:', error);
       err.textContent = error?.message || t('auth.invalidCredentials');
     }
   });
@@ -5311,7 +5326,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   initCurrency();
   initTheme();
   setupNavSettings();
-  await initAuth();
+  const authReady = initAuth().catch((error) => {
+    console.warn('Auth init failed, continuing in guest mode:', error);
+    setCurrentUser(null);
+    setCurrentUserRole(null);
+    return null;
+  });
   await bootstrapProductsForPage();
 
   const page = document.body.dataset.page || '';
@@ -5325,10 +5345,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (page === 'wishlist') {
+    await authReady;
     await renderWishlistPage();
   }
 
   if (page === 'cart') {
+    await authReady;
     await renderCartPage();
     setTimeout(async () => {
       try {
@@ -5343,6 +5365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (page === 'checkout') {
+    await authReady;
     await renderCheckout();
   }
 
@@ -5352,10 +5375,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (page === 'profile') {
+    await authReady;
     await renderProfile();
   }
 
   if (page === 'admin') {
+    await authReady;
     await handleAdminPage();
   }
 
@@ -5368,6 +5393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   handleRegister();
   handleLogin();
 });
+
 
 
 
